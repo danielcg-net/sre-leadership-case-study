@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Failure modes across the webhook flow, three reliability priorities, detection, resilience actions, and production verification.">
+  <title>Failure priorities | SRE leadership case study</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="layout">
+    <aside class="sidebar" aria-label="Case study navigation">
+      <a class="brand" href="index.html">SRE leadership<span>Webhook reliability</span></a>
+      <p class="nav-heading">Architecture</p>
+      <nav aria-label="Case study pages">
+        <a href="index.html"><span class="nav-number" aria-hidden="true">01</span><span>Current flow</span></a>
+        <a class="nav-child" href="patterns.html"><span class="nav-number" aria-hidden="true">01.1</span><span>Architecture patterns</span></a>
+        <a class="nav-child" href="failures.html" aria-current="page"><span class="nav-number" aria-hidden="true">01.2</span><span>Failure priorities</span></a>
+        <a href="proposed.html"><span class="nav-number" aria-hidden="true">02</span><span>Proposed design</span></a>
+        <a href="sequence.html"><span class="nav-number" aria-hidden="true">03</span><span>Delivery sequence</span></a>
+      </nav>
+      <a class="repository-link" href="https://github.com/danielcg-net/sre-leadership-case-study">Source repository ↗</a>
+    </aside>
+    <main id="content" tabindex="-1">
+    <section id="failures" aria-labelledby="failures-title">
+      <p class="eyebrow">01.2 / Current architecture · Failure analysis</p>
+      <h1 id="failures-title">Failure modes and reliability priorities</h1>
+      <p>Prioritize irreversible loss first, shared availability failures second, and duplicate external side effects third. This ranks architectural risk against the scenario's low tolerance for event loss, seconds-level delivery expectation, and 99.9% availability target. Incident frequency and commercial impact have not been measured.</p>
+      <div class="page-jumps" aria-label="On this page">
+        <a href="#failure-map">Failure map</a><a href="#priority-loss">1. Lost work</a><a href="#priority-overload">2. Retry amplification</a><a href="#priority-duplicates">3. Duplicate effects</a><a href="#production-method">Production verification</a>
+      </div>
+      <h2 id="failure-map">Important failure modes across the flow</h2>
+      <p>“Scenario” identifies stated behavior; “assumption” links to the current model. Other entries identify failure exposure without claiming that an incident or missing safeguard has been observed.</p>
+      <div class="pattern-table-frame" role="region" aria-label="Failure-mode map; scroll horizontally on narrow screens" tabindex="0">
+        <table class="pattern-table failure-table">
+          <caption>Where failure occurs, its basis, and customer impact</caption>
+          <thead><tr><th scope="col">Where</th><th scope="col">Failure mode</th><th scope="col">Basis</th><th scope="col">Customer impact</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Gateway / ingestion</th><td>Unavailable ingress, incorrect rejection, or noisy-tenant overload. A success response before durable acceptance would create a loss window.</td><td>Authentication and tenant limits are stated; acceptance durability and overload behavior are unspecified.</td><td>Customers cannot submit valid events, may retry an ambiguous submission, or believe an event was accepted when it was not retained.</td></tr>
+            <tr><th scope="row">Event bus</th><td>Unavailable publish/consume path, capacity exhaustion, or retention expiry while consumers lag.</td><td>Buffered events are stated; capacity, retention and replay guarantees are unspecified.</td><td>New events are rejected or delayed; an outage can become data loss if backlog outlives retention.</td></tr>
+            <tr><th scope="row">Processing acknowledgment / handoff</th><td>Crash after receipt acknowledgment, or after persistence but before delivery handoff. <a href="#priority-loss">Priority 1</a>.</td><td>Receipt acknowledgment is stated; <a href="index.html#stranded-events">no separate durable recovery owner is assumed</a>.</td><td>Accepted events disappear or remain visible but never delivered, with no automatic replay.</td></tr>
+            <tr><th scope="row">Enrichment / processing capacity</th><td>Slow enrichment occupies in-flight capacity; repeated delivery failures add more processing. <a href="#priority-overload">Priority 2</a>.</td><td>Enrichment degradation and backlog are given in the scenario; <a href="index.html#enrichment-gate">request-response is assumed</a>.</td><td>Deliveries miss their expected latency; a shared bottleneck spreads one dependency failure across tenants.</td></tr>
+            <tr><th scope="row">Datastore / search writes</th><td>Slow writes gate delivery; one write succeeds while the other fails. Duplicate reprocessing adds write load.</td><td><a href="index.html#persistence-gates">Both writes gate delivery and are non-atomic assumptions</a>.</td><td>Delivery stalls, events appear inconsistently in views, and partial records need recovery.</td></tr>
+            <tr><th scope="row">Delivery workers / customer endpoints</th><td>Connection failure, rejection, throttling, slow response, or acceptance followed by response loss. <a href="#priority-duplicates">Priority 3</a>.</td><td>Endpoints are customer-controlled; <a href="index.html#endpoint-acceptance">internal customer completion is not observable</a>.</td><td>Delayed or failed automation; ambiguous outcomes can cause duplicate customer side effects.</td></tr>
+            <tr><th scope="row">Retry publication / scheduling</th><td>Lost republish, repeated permanent failure, or immediate retries consuming shared capacity.</td><td>Republish-to-bus is stated; <a href="index.html#retry-amplification">pacing, limits and isolation are unspecified</a>.</td><td>A retry can vanish or repeatedly delay new work and healthy tenants; customers lack a clear recovery path.</td></tr>
+            <tr><th scope="row">Retry / replay ordering</th><td>An older event reaches an endpoint after a newer event, or enrichment changes its payload on replay.</td><td>Full reprocessing is stated; per-entity delivery ordering and immutable payload guarantees are unspecified.</td><td>Customer state can move backward or become inconsistent even when every event is eventually delivered.</td></tr>
+            <tr><th scope="row">Delivery status / search projection</th><td>Lost, duplicate or out-of-order updates; an old failure overwrites newer success.</td><td><a href="index.html#consistency">Independent visibility and absent ordering guarantees are assumptions</a>.</td><td>Dashboard and API disagree, show stale status, or encourage an unnecessary replay. Lost updates may never converge.</td></tr>
+            <tr><th scope="row">Dashboard / API reads</th><td>Shared datastore saturation, index outage or stale reads. Incorrect tenant scoping would expose another tenant's data.</td><td>Customer-visible event/status reads are stated; read isolation and tenant-scope enforcement details are unspecified.</td><td>Customers cannot see or trust progress during incidents; a tenant-scope defect would breach confidentiality.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><strong>Ranking boundary:</strong> the top three concern reliability mechanisms evidenced or exposed by this flow. Tenant authorization remains a release requirement; evidence of a cross-tenant disclosure would immediately override this ranking.</p>
+      <section class="priority-detail" id="priority-loss" aria-labelledby="loss-title">
+        <p class="eyebrow">Priority 1 · Durability</p>
+        <h2 id="loss-title">Accepted work loses its durable owner</h2>
+        <dl class="risk-factors">
+          <dt>Severity</dt><dd>Critical: missing accepted events may be unrecoverable, not merely late.</dd>
+          <dt>Blast radius</dt><dd>One event for an isolated crash; many tenants during a shared worker rollout, storage incident, or failed handoff path.</dd>
+          <dt>Frequency</dt><dd>Unknown. Every receipt acknowledgment exposes the assumed window; actual loss requires a crash or handoff failure within it.</dd>
+          <dt>Business impact</dt><dd>Missed customer workflows, manual reconciliation, and broken trust in acceptance and delivery status.</dd>
+        </dl>
+        <h3>Detect</h3>
+        <p>Reconcile unique accepted event IDs against durable pending work, confirmed endpoint acceptance, or an explicit needs-attention state. Alert on unaccounted IDs beyond a defined processing grace period, stale handoffs, and oldest pending age. Use an independent synthetic sender's acceptance ledger so a missing internal record cannot hide loss. Queue depth alone cannot detect vanished work.</p>
+        <h3>Make resilient</h3>
+        <p>Acknowledge ingestion only after durable append. Keep processing work replayable until the result and delivery intent commit atomically. Publish from that intent, tolerate duplicate publication with stable IDs, and recover abandoned claims with leases and reconciliation. This applies <a href="patterns.html">Guaranteed Delivery, Transactional Outbox and Idempotent Receiver</a>; storage transactions and recovery retention are prerequisites.</p>
+        <h3>Verify in production</h3>
+        <p>For dedicated synthetic events, restart isolated workers after receipt, after result/intent commit, and after publication but before marking it complete. Reconcile every accepted ID after the recovery deadline. Pass only if none is unaccounted for, each has a durable next action or terminal outcome, and the control endpoint records the expected effect. Observe through a restart, backlog drain and replay cycle. Any missing ID stops rollout; preserve pending intents and replay compatibility during rollback.</p>
+      </section>
+      <section class="priority-detail" id="priority-overload" aria-labelledby="overload-title">
+        <p class="eyebrow">Priority 2 · Availability and latency</p>
+        <h2 id="overload-title">Enrichment degradation becomes a shared retry storm</h2>
+        <dl class="risk-factors">
+          <dt>Severity</dt><dd>High: widespread delivery delay can exhaust buffering and turn into loss or ingestion rejection.</dd>
+          <dt>Blast radius</dt><dd>Potentially all tenants sharing processing, enrichment, storage, or retry capacity.</dd>
+          <dt>Frequency</dt><dd>Enrichment degradation is the incident given in the scenario. Recurrence is unknown; the retry loop amplifies every failed delivery that re-enters processing.</dd>
+          <dt>Business impact</dt><dd>Time-sensitive integrations miss their deadlines, healthy tenants suffer collateral delay, and support demand grows.</dd>
+        </dl>
+        <h3>Detect</h3>
+        <p>Track accepted-to-endpoint-acceptance age, including pending events, by tenant cohort. Correlate oldest backlog age and drain rate with enrichment latency/timeouts, in-flight saturation, and processing attempts per unique event. Watch ingestion rejection and dashboard latency as containment guardrails. Page on sustained customer-impact/error-budget burn; successful-delivery percentiles alone omit stuck events.</p>
+        <h3>Make resilient</h3>
+        <p>Separate delivery retries from enrichment and reuse the stored payload. Bound enrichment duration and concurrency; use circuit breakers, per-tenant/endpoint capacity budgets, and delayed retries with jitter, maximum attempts and age. Route permanent failures or exhausted budgets to owned recovery. Decouple search projection from delivery-critical persistence and apply explicit admission limits before buffer exhaustion. <a href="patterns.html">Retry, Circuit Breaker, Bulkhead and Dead Letter Channel</a> provide the relevant controls.</p>
+        <h3>Verify in production</h3>
+        <p>Introduce latency and endpoint rejection only for a dedicated test tenant through a scoped fault profile. Compare canary and control cohorts at matched traffic: delivery retries must add no enrichment calls, attempt counts stay within budget, unaffected tenants remain within their delivery objective, and backlog drains within the agreed recovery window. Check peak traffic and an entire retry-budget cycle. Stop on faster error-budget burn, falling storage headroom, or regression in ingestion/dashboard availability.</p>
+      </section>
+      <section class="priority-detail" id="priority-duplicates" aria-labelledby="duplicates-title">
+        <p class="eyebrow">Priority 3 · Delivery correctness</p>
+        <h2 id="duplicates-title">An ambiguous webhook outcome repeats a customer side effect</h2>
+        <dl class="risk-factors">
+          <dt>Severity</dt><dd>High; potentially critical for customer operations that cannot safely be repeated.</dd>
+          <dt>Blast radius</dt><dd>Usually one event or endpoint; a shared network failure or replay can affect many tenants.</dd>
+          <dt>Frequency</dt><dd>Unknown. Timeouts, lost responses and worker crashes are credible triggers; no duplicate incidence is supplied.</dd>
+          <dt>Business impact</dt><dd>Duplicate business actions, inconsistent records, and costly customer investigation or reversal.</dd>
+        </dl>
+        <h3>Detect</h3>
+        <p>Record stable tenant/event/delivery IDs, payload version, attempt ID, endpoint outcome and status version. Detect retries after ambiguous responses, changed payloads across delivery attempts, and status regression. Count duplicate customer effects only where receipt evidence exists: platform attempts alone cannot prove what an uncontrolled endpoint executed.</p>
+        <h3>Make resilient</h3>
+        <p>Reuse an immutable payload and a stable delivery key; make platform writes idempotent and reject stale status updates. Persist outcomes and next actions before releasing work, then reconcile incomplete records. Define recipient deduplication and retention in the webhook contract. Expose unknown outcomes and controlled replay; <a href="patterns.html">Idempotent Receiver and Message History</a> cannot enforce customer cooperation or promise exactly-once external execution.</p>
+        <h3>Verify in production</h3>
+        <p>A controlled receiver commits a counted side effect, then drops its response. Also restart the test worker before outcome persistence, and deliver an older failure update after success. Pass if repeated requests keep the same key and payload, the deduplicating receiver records one effect, and dashboard/API status does not regress and converges within the freshness objective. Repeat with a receiver that does not deduplicate to expose the contractual limit. Stop on key/payload drift, false success, or duplicate effects at the cooperating receiver.</p>
+      </section>
+      <section class="priority-detail" id="production-method" aria-labelledby="production-title">
+        <h2 id="production-title">Production verification discipline</h2>
+        <p>Before rollout, baseline loss reconciliation, delivery age, retry amplification and status lag across a representative peak and retry cycle. Agree numeric delivery, recovery and freshness limits; the scenario supplies a 99.9% availability target but no complete latency or freshness SLO. Measure ingestion by valid submissions durably accepted, and delivery by unique accepted events reaching endpoint acceptance within the agreed deadline; overdue pending events count as misses, not missing samples. Define availability separately from latency. Keep customer-endpoint failures visible and separately attributed instead of silently excluding them from reported outcomes.</p>
+        <p>Run fault experiments on synthetic tenants and controlled receivers through the production path with isolated resources and a kill switch. Never induce failures at real customer endpoints. Then expand a small real-traffic canary only after its pre-agreed gates pass; compare with a concurrent control and retain a rollback path that preserves outstanding work. Record event counts, observation duration, before/after distributions and exceptions. Zero observed loss in a bounded experiment is evidence, not proof of impossibility.</p>
+        <p>Processing owners validate acknowledgment and enrichment controls; delivery owners validate retry and receipt behavior; data owners validate persistence and projections. SRE coordinates experiments, customer-impact measures and rollout decisions with those teams.</p>
+        <p class="related-page">Method references: <a href="https://sre.google/workbook/alerting-on-slos/">Google SRE: Alerting on SLOs</a> and <a href="https://sre.google/workbook/canarying-releases/">Canarying Releases</a>. Pattern references and their tradeoffs are on <a href="patterns.html">01.1 Architecture patterns</a>.</p>
+      </section>
+    </section>
+    </main>
+  </div>
+</body>
+</html>
