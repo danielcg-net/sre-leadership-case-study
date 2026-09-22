@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Proposed domain ownership, architecture consensus and cross-team adoption for the three reliability priorities.">
+  <title>Domains and Ownership | SRE leadership case study</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="layout">
+    <aside class="sidebar" aria-label="Case study navigation">
+      <a class="brand" href="index.html">SRE leadership<span>Webhook reliability</span></a>
+      <nav aria-label="Case study pages">
+        <p class="nav-heading">Current architecture</p>
+        <a href="index.html"><span class="nav-number" aria-hidden="true">01</span><span>Current flow</span></a>
+        <a class="nav-child" href="patterns.html"><span class="nav-number" aria-hidden="true">01.1</span><span>Architecture patterns</span></a>
+        <a class="nav-child" href="failures.html"><span class="nav-number" aria-hidden="true">01.2</span><span>Failure priorities</span></a>
+        <p class="nav-heading">Improvement plan</p>
+        <a href="proposed.html"><span class="nav-number" aria-hidden="true">02</span><span>Proposed design</span></a>
+        <a href="sequence.html"><span class="nav-number" aria-hidden="true">03</span><span>Delivery sequence</span></a>
+        <a href="future.html"><span class="nav-number" aria-hidden="true">04</span><span>Future scope</span></a>
+        <p class="nav-heading">Leadership and adoption</p>
+        <a href="ownership.html" aria-current="page"><span class="nav-number" aria-hidden="true">05</span><span>Domains and Ownership</span></a>
+      </nav>
+      <a class="repository-link" href="https://github.com/danielcg-net/sre-leadership-case-study">Source repository ↗</a>
+    </aside>
+    <main id="content" tabindex="-1">
+    <section id="ownership" aria-labelledby="ownership-title">
+      <p class="eyebrow">05 / Domains and Ownership</p>
+      <h1 id="ownership-title">Agree the design, assign the work, prove adoption</h1>
+      <p>Service teams remain accountable for building and operating their services. SRE earns adoption through customer-impact evidence, a jointly authored proposal and a measurable pilot. Managers and Principals coordinate delivery with Product and Business; an architecture consensus board resolves cross-domain decisions.</p>
+      <div class="page-jumps" aria-label="On this page"><a href="#domains">Domain assignments</a><a href="#board">Consensus board</a><a href="#decisions">Decision and escalation rules</a><a href="#adoption">Adoption and execution</a></div>
+      <section id="domains" aria-labelledby="domains-title">
+        <h2 id="domains-title">Domain assignments for the three priorities</h2>
+        <p><strong>Source boundaries:</strong> the scenario assigns ingestion to the Ingestion team, processing to the Processing team, and delivery to the Delivery team. The assignments below are proposed additions to those domains. Ownership of the event bus, enrichment, shared storage, search and Dashboard/API is not stated; managers must confirm the actual operating owners before implementation commitments.</p>
+        <div class="pattern-table-frame" role="region" aria-label="Proposed workload and handoff contracts; scroll horizontally on narrow screens" tabindex="0">
+          <table class="pattern-table">
+            <caption>One accountable team per change; contributors agree the interface</caption>
+            <thead><tr><th scope="col">Domain / priority</th><th scope="col">Accountable team</th><th scope="col">Work to deliver and operate</th><th scope="col">Handoff / acceptance evidence</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Durable acceptance · P1</th><td>Ingestion</td><td>Confirm acceptance only after durable append. Own the acceptance ledger, append-failure handling and buffer retention/headroom contract with the bus operator.</td><td>Processing agrees replay identity and retention. Reconcile accepted IDs after append failures and worker restarts.</td></tr>
+              <tr><th scope="row">Result and intent creation · P1</th><td>Processing</td><td>Own atomic result/intent creation, unique event identity, retained index readiness, delayed input acknowledgment and recovery of stale pre-delivery work.</td><td>Delivery co-authors the intent schema and ready-state contract. Restarts at every handoff leave replayable input or durable work; index recovery reuses the saved result.</td></tr>
+              <tr><th scope="row">Enrichment containment · P2</th><td>Processing</td><td>Own caller deadlines, concurrency bounds, circuit breaker and bounded processing retries. Agree dependency limits and escalation with the enrichment owner.</td><td>The enrichment owner retains service-side remediation. A scoped slowdown leaves healthy tenant latency within its objective and pending work recoverable.</td></tr>
+              <tr><th scope="row">Durable dispatcher and recovery · P1/P2</th><td>Delivery</td><td>Own intent claiming, leases, attempt tokens, delivery-only retries, tenant/endpoint limits, retry budgets and needs-attention handling after readiness.</td><td>Processing and Delivery agree a single claim protocol. Prove no delivery retry re-enters enrichment, expired leases recover, and due-work polling handles peak load.</td></tr>
+              <tr><th scope="row">Delivery identity and outcome · P3</th><td>Delivery</td><td>Own stable delivery keys, immutable retry payloads, guarded outcome updates, per-delivery status contract and integration guidance.</td><td>Proposed Dashboard/API owner: Delivery, subject to manager confirmation. Its implementation owner consumes that status contract. Lost-response tests preserve identity and reject stale status updates.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><strong>Shared persistence:</strong> Processing leads result/intent schema migration with Delivery approval of lifecycle compatibility. Delivery owns transitions after readiness; Processing owns transitions before readiness. The confirmed storage operator owns durability, retention and capacity. These roles need named owners and a tested migration/rollback contract, not two teams independently changing shared records.</p>
+        <p><strong>External boundary:</strong> Delivery and Product define the customer integration contract. Customer endpoints are outside our authority: stable keys enable deduplication, but preventing repeated customer-side effects depends on recipient support. The pilot can prove this with a cooperating receiver; it cannot establish that every customer implements deduplication.</p>
+        <p><strong>SRE:</strong> facilitate failure analysis, define shared SLIs and reconciliation evidence, support fault tests and review rollout results. Each service team keeps its on-call, runbooks and remediation backlog. Managers name a primary owner and backup for every row; unspecified infrastructure owners must be resolved before rollout.</p>
+      </section>
+      <section class="priority-detail" id="board" aria-labelledby="board-title">
+        <h2 id="board-title">Architecture consensus board</h2>
+        <p><strong>Proposed charter:</strong> a central authority for this and subsequent cross-domain designs, comprising the CTO, relevant VPs and Directors, and domain Principals. The CTO sponsors the charter and is the final technical decision authority. A nominated Director chairs the review; Principals bring service constraints and implementation options. Product and Business representatives join decisions affecting customer guarantees, priorities or funding; SRE presents reliability evidence.</p>
+        <p>The board approves architectural direction, cross-team contracts, accountable domains and explicit risk acceptance. It reviews changes that cross domain boundaries or materially alter reliability guarantees. Teams retain decisions within an approved contract; routine implementation choices do not return to the board.</p>
+        <p>Managers own staffing, capacity and delivery commitments. Tech leads and Principals own technical decomposition, interface compatibility and engineering readiness. Product and Business agree customer value, sequencing and opportunity cost with those managers. Architecture approval alone does not commit team capacity.</p>
+      </section>
+      <section class="priority-detail" id="decisions" aria-labelledby="decisions-title">
+        <h2 id="decisions-title">Consensus with a deadline and a tie breaker</h2>
+        <p>The following decision windows are a proposed operating agreement, not an existing organizational policy.</p>
+        <ol class="decisions">
+          <li><strong>Prepare:</strong> the sponsoring Principal circulates one short RFC covering P1–P3, alternatives, customer impact, domain owners, cost, dependencies, rollout gates and rollback. Affected managers and Product/Business provide capacity and priority input before review.</li>
+          <li><strong>Seek consensus within five business days:</strong> every affected domain Principal explicitly supports the proposal or records a concrete objection and alternative. Silence is not consent. The chair confirms representation from affected domains; absent reviewers nominate delegates. Missing representation is escalated rather than treated as approval.</li>
+          <li><strong>Resolve disagreement:</strong> the chair records the competing options, evidence and decision needed. The accountable Director has two business days to broker a resolution. An unresolved cross-director dispute goes to the common VP for two business days; an unresolved cross-VP dispute goes to the CTO for a final decision within two business days. If there is no common authority at a level, skip to the next shared authority.</li>
+          <li><strong>Keep work moving:</strong> a missed deadline escalates automatically to the next authority. Managers continue reversible work that does not depend on the disputed contract. The disputed change waits for a recorded decision; a date alone never grants approval. The CTO names an acting delegate when unavailable.</li>
+          <li><strong>Record and commit:</strong> publish an architecture decision record with the decision maker, rationale, dissent, accepted risks, owners and review trigger. Escalated decisions are recorded as such, not relabeled consensus. Managers and Product then confirm funded milestones. New evidence or a breached rollout gate can reopen the decision.</li>
+        </ol>
+        <p><strong>Example:</strong> if Processing and Delivery disagree about the shared intent lifecycle, their Principals propose compatible state-transition options and test results. The Director, then VP, then CTO resolves the remaining tradeoff. Neither team ships incompatible transitions while the decision is pending.</p>
+        <p>During an active incident, the incident commander uses established mitigation and escalation authority. The board does not become a prerequisite for urgent containment; lasting architectural changes return to this review process afterward.</p>
+      </section>
+      <section class="priority-detail" id="adoption" aria-labelledby="adoption-title">
+        <h2 id="adoption-title">Adoption and execution without line authority</h2>
+        <ol class="decisions">
+          <li><strong>Build the case together:</strong> SRE and each owning team establish the baseline: unaccounted accepted events, oldest pending age, enrichment attempts per event and ambiguous delivery outcomes. Product and Business connect those risks to customer commitments, support burden and delivery priorities. Teams co-author the RFC rather than receive a finished mandate.</li>
+          <li><strong>Make commitments explicit:</strong> after the board decision, managers and Principals break the work into linked team-owned tickets with a named DRI, capacity allocation, interface dependency, acceptance evidence and target milestone. A capacity conflict is a prioritization decision for managers and Product/Business; unresolved conflicts follow the leadership chain.</li>
+          <li><strong>Sequence by dependency:</strong> first agree identity, intent states, retention and status contracts. Processing and Ingestion establish durable ownership; Delivery builds the compatible dispatcher and retry isolation. Enrichment containment can progress in parallel. Stable keys and conditional outcomes are ready before enabling retries in the new path. Principals prevent simultaneous legacy and new dispatch for the same work.</li>
+          <li><strong>Pilot before broad adoption:</strong> service teams deploy a scoped canary and own rollback; SRE supports the fault tests and reconciliation in <a href="failures.html#production-method">01.2 Failure priorities</a>. Exercise restarts, degraded enrichment and a lost response after receiver acceptance. Managers review dependency progress weekly; expansion requires the agreed P1–P3 pass criteria and no customer-impact regression.</li>
+          <li><strong>Close on operational ownership:</strong> each team demonstrates alerts reaching its on-call, recovery and rollback runbooks, schema compatibility, and a complete retry/recovery cycle. Product confirms the communicated customer guarantee, including the deduplication limitation. SRE verifies the evidence; managers accept the ongoing support workload. A merged change alone is not adoption.</li>
+        </ol>
+        <p class="related-page">Scope stays tied to <a href="proposed.html">02 Proposed design</a> and <a href="sequence.html">03 Delivery sequence</a>. Additional improvements remain in <a href="future.html">04 Future scope</a> until separately prioritized and reviewed.</p>
+      </section>
+    </section>
+    </main>
+  </div>
+</body>
+</html>

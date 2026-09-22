@@ -11,8 +11,8 @@ a:focus-visible, [tabindex]:focus-visible { outline: 3px solid #b36b14; outline-
 .brand { display: block; color: #172c3a; text-decoration: none; font-weight: 700; font-size: 1.15rem; line-height: 1.4; padding: 0 12px; }
 .brand span { display: block; color: #496473; font-size: .85rem; font-weight: 400; margin-top: 6px; }
 .nav-heading, .eyebrow { color: #496473; font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; font-weight: 650; }
-.nav-heading { margin: 44px 12px 12px; }
-nav { display: grid; gap: 8px; }
+.nav-heading { margin: 24px 12px 4px; grid-column: 1 / -1; }
+nav { display: grid; gap: 8px; margin-top: 12px; }
 nav a { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 12px; border-radius: 6px; text-decoration: none; color: #385361; font-size: .9rem; border-left: 3px solid transparent; }
 nav a:hover { background: #e1e8eb; }
 nav a[aria-current="page"] { background: #d9e7ed; border-left-color: #175a77; color: #153e53; font-weight: 650; }

@@ -4,7 +4,7 @@ A case study in improving reliability for a multi-tenant webhook delivery platfo
 
 The [diagram site](https://danielcg-net.github.io/sre-leadership-case-study/) presents the current architecture, proposed architecture, and delivery/retry sequence. Proposals and assumptions are labeled; no infrastructure provider is assumed.
 
-Each section has its own page, linked by the sidebar: `index.html` (current flow), `patterns.html` (01.1 architecture patterns), `failures.html` (01.2 failure map and top-three priorities), `proposed.html`, `sequence.html`, and `future.html` (04 deferred improvements). The proposed design and delivery sequence are limited to the three ranked reliability priorities. The pattern reference maps current challenges to candidate patterns, their fit, limits, and primary sources. Diagram frames scroll independently; full SVGs remain available. Previously shared section hash links still work.
+Each section has its own page, linked by the sidebar: `index.html` (current flow), `patterns.html` (01.1 architecture patterns), `failures.html` (01.2 failure map and top-three priorities), `proposed.html`, `sequence.html`, and `future.html` (04 deferred improvements), and `ownership.html` (05 domains, governance and adoption). The proposed design and delivery sequence are limited to the three ranked reliability priorities. The pattern reference maps current challenges to candidate patterns, their fit, limits, and primary sources. Diagram frames scroll independently; full SVGs remain available. Previously shared section hash links still work.
 
 ## Build diagrams and site
 
