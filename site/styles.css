@@ -16,6 +16,7 @@ nav { display: grid; gap: 8px; }
 nav a { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 12px; border-radius: 6px; text-decoration: none; color: #385361; font-size: .9rem; border-left: 3px solid transparent; }
 nav a:hover { background: #e1e8eb; }
 nav a[aria-current="page"] { background: #d9e7ed; border-left-color: #175a77; color: #153e53; font-weight: 650; }
+nav a.nav-child { margin-left: 12px; font-size: .82rem; }
 .nav-number { font-size: .72rem; font-variant-numeric: tabular-nums; color: #496473; }
 .repository-link { margin-top: auto; padding: 36px 12px 0; font-size: .8rem; }
 main { min-width: 0; width: 100%; max-width: 1400px; margin: 0 auto; padding: 32px clamp(20px, 3vw, 48px); }
@@ -37,15 +38,25 @@ figcaption { border-top: 1px solid #e2e8eb; padding: 12px 18px; font-size: .8rem
 .assumptions li { padding-left: 6px; margin: 24px 0; }
 .assumptions h3 { font-size: 1rem; margin: 0 0 8px; }
 .assumptions p { font-size: .9rem; margin: 8px 0; }
+.related-page { margin-top: 28px; font-size: .9rem; }
+.pattern-table-frame { overflow-x: auto; margin: 28px 0; }
+.pattern-table { width: 100%; min-width: 860px; border-collapse: collapse; font-size: .88rem; line-height: 1.55; }
+.pattern-table caption { text-align: left; font-weight: 650; margin-bottom: 12px; }
+.pattern-table th, .pattern-table td { padding: 16px; text-align: left; vertical-align: top; border-bottom: 1px solid #d5dfe3; }
+.pattern-table thead { background: #edf1f2; }
+.pattern-table th[scope="row"] { width: 21%; font-weight: 600; }
+.pattern-table td:nth-child(2) { width: 18%; }
+.pattern-table td:nth-child(3) { width: 29%; }
 @media (max-width: 760px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
   .sidebar { position: static; height: auto; padding: 18px 16px 14px; border-right: 0; border-bottom: 1px solid #d5dfe3; }
   .brand { padding: 0 4px; font-size: 1rem; }
   .brand span { margin-top: 2px; font-size: .75rem; }
   .nav-heading { margin: 18px 4px 8px; }
-  nav { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+  nav { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
   nav a { gap: 6px; padding: 10px 6px; font-size: .8rem; line-height: 1.4; }
-  .nav-number { display: none; }
+  nav a.nav-child { margin-left: 0; font-size: .8rem; }
+  .nav-number { display: inline; }
   .repository-link { margin-top: 12px; padding: 0 4px; }
   main { padding: 24px 20px; }
   .diagram-frame { padding: 12px; height: 50dvh; min-height: 280px; }
@@ -59,4 +70,8 @@ figcaption { border-top: 1px solid #e2e8eb; padding: 12px 18px; font-size: .8rem
   .diagram-frame { height: auto; min-height: 0; overflow: visible; padding: 0; }
   .diagram-frame img { min-width: 0; }
   figure { break-inside: avoid; }
+  .pattern-table-frame { overflow: visible; }
+  .pattern-table { min-width: 0; font-size: 8pt; }
+  .pattern-table th, .pattern-table td { padding: 6px; }
+  .pattern-table tr { break-inside: avoid; }
 }
