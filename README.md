@@ -4,7 +4,14 @@ A case study in improving reliability for a multi-tenant webhook delivery platfo
 
 The [diagram site](https://danielcg-net.github.io/sre-leadership-case-study/) presents the current architecture, proposed architecture, and delivery/retry sequence. Proposals and assumptions are labeled; no infrastructure provider is assumed.
 
-Each section has its own page, linked by the sidebar: `index.html` (current flow), `patterns.html` (01.1 architecture patterns), `failures.html` (01.2 failure map and top-three priorities), `proposed.html`, `sequence.html`, and `future.html` (04 deferred improvements), and `ownership.html` (05 domains, governance and adoption), and `metrics.html` (06 KPIs and business outcomes), and `infrastructure.html` (07 infrastructure reliability). The proposed design and delivery sequence are limited to the three ranked reliability priorities. The pattern reference maps current challenges to candidate patterns, their fit, limits, and primary sources. Diagram frames scroll independently; full SVGs remain available. Previously shared section hash links still work.
+The sidebar groups the pages by numbered domain:
+
+- **1 - Current Architecture:** 1.1 Current Flow (`index.html`), 1.2 Architecture Patterns (`patterns.html`), 1.3 Failure Priorities (`failures.html`).
+- **2 - Improvement Plan:** 2.1 Proposed Design (`proposed.html`), 2.2 Delivery Sequence (`sequence.html`), 2.3 Future Scope (`future.html`).
+- **3 - Leadership and Adoption:** 3.1 Domains and Ownership (`ownership.html`).
+- **4 - Reliability Evidence:** 4.1 KPIs and Business Outcomes (`metrics.html`), 4.2 Infrastructure Reliability (`infrastructure.html`).
+
+The proposed design and delivery sequence are limited to the three ranked reliability priorities. The pattern reference maps current challenges to candidate patterns, their fit, limits, and primary sources. Diagram frames scroll independently; full SVGs remain available. Previously shared section hash links still work.
 
 ## Build diagrams and site
 
