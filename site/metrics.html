@@ -25,6 +25,7 @@
         <a href="ownership.html"><span class="nav-number" aria-hidden="true">05</span><span>Domains and Ownership</span></a>
         <p class="nav-heading">Reliability evidence</p>
         <a href="metrics.html" aria-current="page"><span class="nav-number" aria-hidden="true">06</span><span>KPIs and business outcomes</span></a>
+        <a href="infrastructure.html"><span class="nav-number" aria-hidden="true">07</span><span>Infrastructure reliability</span></a>
       </nav>
       <a class="repository-link" href="https://github.com/danielcg-net/sre-leadership-case-study">Source repository ↗</a>
     </aside>
@@ -91,6 +92,7 @@
         <p><strong>Three views:</strong> operations gets current impact, burn, oldest work and dependency saturation; team review gets P1–P3 invariants, cohort trends and fault-test results; Product/Business gets affected tenants, timely deliveries, support burden and cost. Every view shows coverage and last update time.</p>
         <p><strong>Decision record:</strong> state the customer hypothesis, baseline and data quality, alternative options, expected metric change, cost, accountable owner, pass/stop conditions and review date. For P2, for example, delivery retry isolation should reduce enrichment attempts without worsening ingestion, healthy-tenant delivery latency or loss accounting. Extra throughput alone cannot establish that result.</p>
         <p><strong>Verify:</strong> compare canary and control cohorts with similar load and endpoint behavior through peak traffic and a complete retry/recovery cycle. Reconcile accepted IDs and include pending outcomes. Stop for missing work, identity/status corruption, customer-objective regression or unsafe headroom. Expand only after service owners and SRE review evidence against <a href="failures.html#production-method">the production verification gates</a>; Product confirms the business tradeoff.</p>
+        <p class="related-page">Apply this framework to <a href="infrastructure.html">07 Infrastructure reliability</a>.</p>
       </section>
     </section>
     </main>
