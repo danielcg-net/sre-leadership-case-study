@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Metric definitions, customer outcomes and decision evidence for reliability investments.">
+  <title>KPIs and business outcomes | SRE leadership case study</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="layout">
+    <aside class="sidebar" aria-label="Case study navigation">
+      <a class="brand" href="index.html">SRE leadership<span>Webhook reliability</span></a>
+      <nav aria-label="Case study pages">
+        <p class="nav-heading">Current architecture</p>
+        <a href="index.html"><span class="nav-number" aria-hidden="true">01</span><span>Current flow</span></a>
+        <a class="nav-child" href="patterns.html"><span class="nav-number" aria-hidden="true">01.1</span><span>Architecture patterns</span></a>
+        <a class="nav-child" href="failures.html"><span class="nav-number" aria-hidden="true">01.2</span><span>Failure priorities</span></a>
+        <p class="nav-heading">Improvement plan</p>
+        <a href="proposed.html"><span class="nav-number" aria-hidden="true">02</span><span>Proposed design</span></a>
+        <a href="sequence.html"><span class="nav-number" aria-hidden="true">03</span><span>Delivery sequence</span></a>
+        <a href="future.html"><span class="nav-number" aria-hidden="true">04</span><span>Future scope</span></a>
+        <p class="nav-heading">Leadership and adoption</p>
+        <a href="ownership.html"><span class="nav-number" aria-hidden="true">05</span><span>Domains and Ownership</span></a>
+        <p class="nav-heading">Reliability evidence</p>
+        <a href="metrics.html" aria-current="page"><span class="nav-number" aria-hidden="true">06</span><span>KPIs and business outcomes</span></a>
+      </nav>
+      <a class="repository-link" href="https://github.com/danielcg-net/sre-leadership-case-study">Source repository ↗</a>
+    </aside>
+    <main id="content" tabindex="-1">
+    <section id="metrics" aria-labelledby="metrics-title">
+      <p class="eyebrow">06 / KPIs and business outcomes</p>
+      <h1 id="metrics-title">Measure customer outcomes, then choose the investment</h1>
+      <p>Accepted ingestion measures demand served at the platform boundary. Successful webhook throughput measures confirmed endpoint acceptance. Neither counts retries as new value, and endpoint acceptance does not prove the customer's business workflow completed.</p>
+      <div class="page-jumps" aria-label="On this page"><a href="#contract">Measurement contract</a><a href="#catalogue">Metric catalogue</a><a href="#targets">Targets and alerts</a><a href="#decisions">Decision evidence</a></div>
+      <section class="priority-detail" id="contract" aria-labelledby="contract-title">
+        <h2 id="contract-title">Measurement contract</h2>
+        <p><strong>Known:</strong> the scenario targets at least 99.9% ingestion and delivery availability, delivery within seconds under normal conditions, and low tolerance for event loss. It supplies no measured baseline, exact latency threshold, measurement window or contractual exclusions. The definitions below are proposals for agreement with service owners, Product and Business.</p>
+        <ul class="decisions">
+          <li><strong>Identity:</strong> an event is unique by tenant and producer event ID; a delivery obligation by tenant, event and destination. Every network attempt has a separate attempt ID. Freeze the destination set at acceptance or record its later resolution explicitly; never silently remove failed obligations from denominators.</li>
+          <li><strong>Time and cohorts:</strong> rate = count during a window / elapsed seconds. Operational views use one-minute buckets and five-minute trends; proposed SLO reporting uses a rolling 28 days. Compare tenant traffic classes and customer cohorts, plus region only if deployed. Report per-tenant drilldowns so large tenants cannot hide small-tenant failures.</li>
+          <li><strong>Observation:</strong> record durable acceptance, eligibility, attempts, responses and state transitions with correlated IDs and timestamps. Reconcile gateway acceptance receipts against durable ownership. Clock skew, missing records and delayed telemetry are measured; unknown evidence is not marked healthy.</li>
+          <li><strong>Latency cohort:</strong> agree a deadline D before enabling a timeliness SLO. Evaluate obligations whose acceptance time + D falls in the window; count those confirmed accepted by that deadline as good. Pending, failed and ambiguous outcomes miss the deadline. Successful-only latency percentiles are diagnostic, not the complete customer outcome.</li>
+          <li><strong>Collection:</strong> propose an initial 28-day baseline covering peaks, deployments and a retry/recovery cycle. All rows below start unmeasured. Use synthetic faults where failures are absent; do not wait for a loss incident to validate P1. Keep raw event IDs in access-controlled records rather than metric labels; use bounded outcome/cohort labels and restricted tenant drilldowns. Never log tokens or webhook payloads for these metrics.</li>
+        </ul>
+      </section>
+      <section id="catalogue" aria-labelledby="catalogue-title">
+        <h2 id="catalogue-title">Metric catalogue</h2>
+        <p>Owners below are proposed measurement owners under <a href="ownership.html#domains">05 Domains and Ownership</a>. Each owner supplies the source, completeness checks and baseline; Product approves customer thresholds and Finance validates cost or commercial attribution. Rates use the operational windows above unless stated otherwise.</p>
+        <div class="pattern-table-frame" role="region" aria-label="Metric definitions, evidence and decisions; scroll horizontally on narrow screens" tabindex="0">
+          <table class="pattern-table">
+            <caption>Demand, delivery and diagnostic signals</caption>
+            <thead><tr><th scope="col">Metric</th><th scope="col">Definition / denominator</th><th scope="col">Source and owner</th><th scope="col">Target and decision supported</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Accepted ingestions/sec</th><td>Unique events durably accepted / seconds. Also show eligible offered requests/sec and rejected requests/sec; duplicates are separate.</td><td>Gateway outcomes joined to durable append receipts; Ingestion. Compare tenant cohorts and peak intervals.</td><td>No fixed throughput target from the scenario. Capacity must serve agreed demand within the ingestion objective; falling throughput may reflect demand or failure.</td></tr>
+              <tr><th scope="row">Successful webhooks/sec</th><td>Unique delivery obligations first confirmed endpoint-accepted during the window / seconds. Show acceptance-to-delivery cohorts separately; dividing current output by current input misreads backlog drain.</td><td>Durable intent outcome plus response evidence; Delivery. Unknown responses are not confirmed successes.</td><td>Meet demand and recover backlog within an agreed window. Evaluate completed value alongside timeliness and unit cost, not raw attempt volume.</td></tr>
+              <tr><th scope="row">Ingestion availability</th><td>Eligible requests durably accepted within agreed ingress deadline / all eligible requests. Service-caused rejection and timeout are bad; genuine invalid/auth-denied or over-contract traffic is separately reported.</td><td>Gateway request outcomes, append receipts and independent valid-request probes; Ingestion with gateway owner. Edge outages missed by logs remain visible in probes.</td><td>Scenario floor: 99.9%; exact deadline, window and eligibility need approval. A valid request denied by an auth fault remains a failure, not an exclusion.</td></tr>
+              <tr><th scope="row">Delivery timeliness and latency</th><td>Good matured obligations / all matured obligations using deadline D. Also p50/p95/p99 acceptance-to-confirmed-acceptance for successes, oldest pending age and per-stage histograms.</td><td>Acceptance and outcome timestamps, pending ledger, stage timings; Delivery coordinates Processing and Ingestion.</td><td>Proposed operationalization of delivery availability: at least 99.9% confirmed within D; Product must agree D and contract mapping. Show all-cause outcome plus attributed customer-endpoint failures without hiding them.</td></tr>
+              <tr><th scope="row">Errors/sec and error rate</th><td>Failed attempts / seconds and failed attempts / all attempts at the same stage. Split timeout, transient, permanent and ambiguous; count each attempt once. Also report terminally failed unique obligations.</td><td>Structured stage outcomes; each service team. Separately expose gateway 429, service 5xx and recipient responses.</td><td>Raw errors diagnose; customer SLO burn prioritizes. An increasing retry denominator must not make a failing unique-event outcome look better.</td></tr>
+              <tr><th scope="row">Authentication failures/sec</th><td>Denied auth attempts / seconds and denied / all auth attempts, by bounded reason. Pair with valid-credential probe success and affected legitimate tenants.</td><td>Gateway auth decisions and probes; Ingestion coordinates the confirmed gateway/security owner.</td><td>Baseline expected denial traffic; investigate changes. Page for legitimate access impact or a security trigger, not every invalid credential. Product and security owner agree separate thresholds.</td></tr>
+              <tr><th scope="row">Unaccounted work · P1</th><td>Accepted unique IDs older than a reconciliation grace period with neither durable pending ownership, confirmed acceptance nor retained needs-attention state. Report count / reconciled accepted IDs and unmatched receipts.</td><td>Independent acceptance ledger joined to buffer and intent states; Ingestion and Processing, SRE validates reconciliation.</td><td>Any confirmed missing ID stops rollout. Set the grace period from measured propagation; telemetry gaps are unknown, not proof of loss or success.</td></tr>
+              <tr><th scope="row">Retry amplification / backlog · P2</th><td>Processing attempts per unique event; delivery attempts per obligation. Track pending count, oldest age, completions minus new obligations/sec, and retry-budget exhaustion count.</td><td>Attempt and intent histories, queue age and depth; Processing / Delivery for their stages.</td><td>Delivery retries add zero enrichment calls in tests. Recovery needs positive net drain and adequate retention; exhausted work stays owned. Agree maximum recovery age and attempts before rollout.</td></tr>
+              <tr><th scope="row">Duplicate and ambiguous outcomes · P3</th><td>Repeated delivery attempts / attempted obligations; ambiguous outcome count and age. Actual repeated effects / observed receiver effects only where recipient evidence exists.</td><td>Attempt tokens, delivery keys and receiver receipts for cooperating endpoints; Delivery.</td><td>Repeated attempts are expected under retries. Stable key/payload and no stale-state regression are invariants; one-effect verification applies to the test receiver, not all customer systems.</td></tr>
+              <tr><th scope="row">Status freshness</th><td>Authoritative state changes visible through API/dashboard within freshness bound F / changes checked. Also lag percentiles and stale/missing version count.</td><td>Versioned intent updates compared with API reads and synthetic probes; Delivery with Dashboard/API owner.</td><td>Product agrees F. Do not show an authoritative delivered status from an old or conflicting cache entry. Use this evidence for future caching/read-model decisions.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pattern-table-frame" role="region" aria-label="Business and infrastructure outcome metrics; scroll horizontally on narrow screens" tabindex="0">
+          <table class="pattern-table">
+            <caption>Business impact and investment evidence</caption>
+            <thead><tr><th scope="col">Metric</th><th scope="col">Definition / window</th><th scope="col">Source and owner</th><th scope="col">Decision supported</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Affected tenants and customer-minutes</th><td>Distinct tenants with a missed agreed objective; sum minutes of impact per tenant, merging overlapping incidents. Report daily/28-day totals and severity cohorts.</td><td>Delivery/ingestion cohorts and incident timeline; SRE + Product. No traffic means unknown experience, not automatically healthy.</td><td>Prioritize breadth and duration of harm; show both tenant-weighted and event-weighted results. Targets follow agreed objectives.</td></tr>
+              <tr><th scope="row">Business workflow completion</th><td>Confirmed unique completed workflows / eligible workflows in a matured business cohort; only where customer instrumentation supplies completion evidence.</td><td>Consented customer receipts joined to delivery IDs; Product + Delivery.</td><td>Otherwise mark unavailable. Webhook acceptance is a proxy, not proof of revenue or completed customer work.</td></tr>
+              <tr><th scope="row">Support and commercial impact</th><td>Reliability-linked support cases per 1,000 active tenants per 28 days; confirmed SLA credits and affected contract value separately.</td><td>Deduplicated support incidents and agreed account/contract mapping; Product/Business + Finance.</td><td>Validate customer pain and cost of inaction. Affected contract value is exposure, not realized revenue loss; avoid double counting customers across incidents.</td></tr>
+              <tr><th scope="row">Cost per successful delivery</th><td>Attributed processing, storage, transfer and retry cost / unique confirmed accepted obligations for the same monthly cohort, with shared-cost allocation stated.</td><td>Cost records joined to delivery totals; Finance + service managers.</td><td>Compare cost and customer outcomes together. Report spend and pending work even when denominator is zero; do not optimize cost by dropping difficult deliveries.</td></tr>
+              <tr><th scope="row">Capacity and recovery</th><td>Utilization and headroom against tested safe capacity; buffer time-to-full; measured restore/failover duration and accepted-data recovery gap per drill/incident.</td><td>Load tests, storage/buffer telemetry and recovery ledgers; confirmed infrastructure operators with SRE.</td><td>Compare with agreed recovery time/point objectives and peak demand. Thresholds must include scaling startup and dependency limits; untested recovery is not achieved reliability.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section class="priority-detail" id="targets" aria-labelledby="targets-title">
+        <h2 id="targets-title">Targets, error budgets and alerts</h2>
+        <p>An SLI is the measured ratio; an SLO is its agreed target and window; an SLA is a separate customer contract. Proposed ingestion and delivery budgets remain separate. For a 99.9% event-based objective, allowed bad events = eligible events × 0.001; burn rate = observed bad-event fraction / 0.001. That arithmetic does not turn missing observations into good events.</p>
+        <p>Use sustained customer-impact burn to page, supported by short and long windows; lower urgency degradation creates owned follow-up work. Exact thresholds and windows require traffic-volume testing and on-call agreement. Low-volume tenants need synthetic probes and explicit counts, while P1 missing-work and P3 correctness violations require direct handling even when aggregate burn is low. <a href="https://sre.google/workbook/alerting-on-slos/">Google SRE's alerting guidance</a> explains the burn-rate approach.</p>
+        <p>Product and managers approve D, F, eligibility, recovery windows and costs through <a href="ownership.html#board">architecture and prioritization review</a>. Baselines inform feasibility; customer needs determine targets. Record target versions and apply denominator changes prospectively, never to erase a breach. <a href="https://sre.google/workbook/implementing-slos/">Implementing SLOs</a> provides the underlying good-events/total-events model.</p>
+      </section>
+      <section class="priority-detail" id="decisions" aria-labelledby="decisions-title">
+        <h2 id="decisions-title">Turn metrics into decisions</h2>
+        <p><strong>Three views:</strong> operations gets current impact, burn, oldest work and dependency saturation; team review gets P1–P3 invariants, cohort trends and fault-test results; Product/Business gets affected tenants, timely deliveries, support burden and cost. Every view shows coverage and last update time.</p>
+        <p><strong>Decision record:</strong> state the customer hypothesis, baseline and data quality, alternative options, expected metric change, cost, accountable owner, pass/stop conditions and review date. For P2, for example, delivery retry isolation should reduce enrichment attempts without worsening ingestion, healthy-tenant delivery latency or loss accounting. Extra throughput alone cannot establish that result.</p>
+        <p><strong>Verify:</strong> compare canary and control cohorts with similar load and endpoint behavior through peak traffic and a complete retry/recovery cycle. Reconcile accepted IDs and include pending outcomes. Stop for missing work, identity/status corruption, customer-objective regression or unsafe headroom. Expand only after service owners and SRE review evidence against <a href="failures.html#production-method">the production verification gates</a>; Product confirms the business tradeoff.</p>
+      </section>
+    </section>
+    </main>
+  </div>
+</body>
+</html>
