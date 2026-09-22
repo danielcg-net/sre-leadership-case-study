@@ -1,0 +1,65 @@
+name: YouTrack delivery policy
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: youtrack-delivery-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate YouTrack delivery
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout trusted policy
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: trusted-policy
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: trusted-policy/.nvmrc
+      - name: Install trusted dependencies and test policy
+        working-directory: trusted-policy
+        run: npm ci --ignore-scripts && npm test
+      - name: Validate branch, commits, title and issue link
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const pull = context.payload.pull_request;
+            if (!pull) {
+              core.setFailed('No pull request payload found.');
+              return;
+            }
+
+            const policy = await import(`${process.env.GITHUB_WORKSPACE}/trusted-policy/.github/scripts/validate-youtrack-delivery-policy.mjs`);
+            if (policy.isTrustedDependabotAuthor(pull.user?.login)) {
+              core.info('Authenticated Dependabot update: delivery identifiers are not required.');
+              return;
+            }
+            const metadata = policy.validatePullRequestMetadata({ branch: pull.head.ref, title: pull.title });
+            if (metadata.errors.length > 0 || !metadata.issueId) {
+              core.setFailed(metadata.errors.join('\n'));
+              return;
+            }
+            const commits = await github.paginate(github.rest.pulls.listCommits, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pull.number,
+              per_page: 100
+            });
+            const errors = [
+              ...policy.validatePullRequestBody(metadata.issueId, pull.body),
+              ...policy.validateCommitMessages(metadata.issueId, commits)
+            ];
+            if (errors.length > 0) core.setFailed(errors.join('\n'));
