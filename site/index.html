@@ -28,7 +28,7 @@
       <p>Processing acknowledges on receipt. Every failed delivery returns to the event bus and repeats processing, including enrichment. Slow enrichment and delivery retries can therefore compound the backlog.</p>
       <figure>
         <div class="diagram-frame" role="region" aria-label="Current architecture diagram; scroll to explore" tabindex="0">
-        <img src="diagrams/current-architecture.svg" alt="Current flow assumes enrichment and both storage write acknowledgments precede delivery. Dashboard and API reads are independent. Failed delivery returns to the event bus." width="1000" loading="eager">
+        <img src="diagrams/current-architecture.svg" alt="Current flow assumes enrichment and both storage write acknowledgments precede delivery. Dashboard and API reads are independent. Failed delivery returns to the event bus; a separate assumed status-update path feeds customer-visible status." width="1000" loading="eager">
         </div>
         <figcaption>Amber marks the acknowledgment and retry boundaries to examine. <a href="diagrams/current-architecture.svg">Open full diagram</a> · <a href="diagrams/current-architecture.mmd">Mermaid source</a></figcaption>
       </figure>
@@ -47,7 +47,7 @@
           </li>
           <li>
             <h3>Dashboard/API reads are independent of delivery</h3>
-            <p><strong>Assumption:</strong> the dashboard and API read stored event and delivery status on demand; processing does not wait for a UI refresh or API read. Delivery outcomes are recorded separately after attempts.</p>
+            <p><strong>Assumption:</strong> the dashboard and API read stored event and delivery status on demand; processing does not wait for a UI refresh or API read. Some delivery-status reporting exists, as the scenario requires. We assume outcome updates are separate from attempts and retry publication, with no guaranteed atomic commit across them.</p>
             <p><strong>Impact:</strong> dashboard/API serving is not another delivery gate. An event can appear before delivery succeeds; index refresh delays or failed status writes can leave its displayed state stale. Shared storage load can still degrade reads. Visibility is not proof of delivery.</p>
           </li>
           <li>
@@ -61,6 +61,28 @@
             <p><strong>Impact:</strong> a crash before persistence can lose unfinished work. A crash after persistence but before handoff, or a failed retry publication, can leave a dashboard-visible event with no remaining delivery work. A downstream outage alone causes delay while retries survive; permanent stranding requires this recovery gap. Stored events therefore need durable delivery ownership and reconciliation.</p>
           </li>
         </ol>
+      </div>
+      <div class="assumptions" aria-labelledby="endpoint-failures-title">
+        <h2 id="endpoint-failures-title">Customer endpoint failure boundary</h2>
+        <p>The customer owns the receiving infrastructure. The platform owns delivery attempts, recovery, and truthful status. The current retry mechanism republishes failed events to the event bus; durable retry scheduling, limits, and status-update guarantees are not specified.</p>
+        <ol>
+          <li>
+            <h3>Endpoint acceptance is the observable boundary</h3>
+            <p><strong>Assumption:</strong> the platform observes an endpoint response or a timeout, with no separate receipt confirming completion inside the customer's system.</p>
+            <p><strong>Impact:</strong> a success response establishes acceptance under the webhook contract, not completion of customer processing. A lost response leaves acceptance unknown. Retrying may duplicate a side effect; stopping may leave the event undelivered.</p>
+          </li>
+          <li>
+            <h3>External failures feed back into shared processing</h3>
+            <p><strong>Current behavior:</strong> failed attempts repeat enrichment and persistence through the event bus. Retry pacing, maximum age, terminal failure handling, and per-endpoint isolation are unspecified.</p>
+            <p><strong>Impact:</strong> an unavailable or slow endpoint can amplify platform work. Without effective limits, its retries can delay healthy tenants. Repeated rejection needs a visible recovery state and an assigned owner; an endless retry loop is not recovery.</p>
+          </li>
+          <li>
+            <h3>Retry publication is not delivery-status feedback</h3>
+            <p><strong>Assumption:</strong> delivery attempts to write outcomes separately to the shared store. A retry message alone does not reliably update customer-visible status, and no reconciliation repairs a lost status update.</p>
+            <p><strong>Impact:</strong> a retry can be pending while the dashboard shows an old failure, or the endpoint can accept the event while the dashboard still shows pending. If the status write and retry publication both fail, there may be neither visible failure nor remaining work. Delivery must retain durable ownership until the outcome and next action are recoverable.</p>
+          </li>
+        </ol>
+        <p><strong>Design consequence:</strong> separate delivery retries from processing, persist attempt outcomes and the next action, isolate tenants/endpoints, and reconcile stalled work. Expose pending, retry scheduled, outcome unknown, endpoint accepted, and needs-attention states with failure reason, last-attempt time, next retry, and status freshness. Operators own platform recovery; customers own endpoint repair.</p>
       </div>
     </section>
     </main>
