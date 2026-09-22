@@ -31,7 +31,6 @@ figcaption { border-top: 1px solid #e2e8eb; padding: 12px 18px; font-size: .8rem
 .note { padding: 16px 20px; background: #edf1f2; border-radius: 4px; font-size: .9rem; }
 .decisions { max-width: 95ch; padding-left: 22px; font-size: .9rem; }
 .decisions li { margin: 10px 0; }
-footer { border-top: 1px solid #d5dfe3; padding-top: 18px; margin-top: 28px; font-size: .75rem; color: #496473; max-width: 100ch; }
 @media (max-width: 760px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
   .sidebar { position: static; height: auto; padding: 18px 16px 14px; border-right: 0; border-bottom: 1px solid #d5dfe3; }

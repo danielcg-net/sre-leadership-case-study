@@ -33,7 +33,6 @@
       </figure>
       <p class="note"><strong>Recovery contract:</strong> processing is idempotent by tenant and event ID. Work leases expire after crashes. Rescheduling is durable before releasing the current claim; already-recorded success suppresses further attempts. Permanent failures and exhausted retries enter controlled recovery, not an endless loop. Delivery order is not guaranteed by this proposal.</p>
     </section>
-      <footer>Conceptual design exercise. Proposals are not deployed or measured results. No infrastructure provider is assumed.</footer>
     </main>
   </div>
 </body>
