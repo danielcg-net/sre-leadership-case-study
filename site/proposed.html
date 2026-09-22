@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Proposed design: a provider-neutral webhook reliability case study.">
+  <title>Proposed design | SRE leadership case study</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="layout">
+    <aside class="sidebar" aria-label="Case study navigation">
+      <a class="brand" href="index.html">SRE leadership<span>Webhook reliability</span></a>
+      <p class="nav-heading">Architecture</p>
+      <nav aria-label="Diagrams">
+        <a href="index.html"><span class="nav-number" aria-hidden="true">01</span><span>Current flow</span></a>
+        <a href="proposed.html" aria-current="page"><span class="nav-number" aria-hidden="true">02</span><span>Proposed design</span></a>
+        <a href="sequence.html"><span class="nav-number" aria-hidden="true">03</span><span>Delivery sequence</span></a>
+      </nav>
+      <a class="repository-link" href="https://github.com/danielcg-net/sre-leadership-case-study">Source repository ↗</a>
+    </aside>
+    <main id="content" tabindex="-1">
+    <section id="proposed" aria-labelledby="proposed-title">
+      <p class="eyebrow">02 / Proposed design</p>
+      <h1 id="proposed-title">Separate durable processing from delivery retries</h1>
+      <p>Commit the enriched result and a delivery intent together before acknowledging processing. Deliver from durable work; retry the stored payload without re-running enrichment. Keep search indexing off the delivery-critical path.</p>
+      <figure>
+        <div class="diagram-frame" role="region" aria-label="Proposed architecture diagram; scroll to explore" tabindex="0">
+        <img src="diagrams/proposed-architecture.svg" alt="Proposed flow separates processing, a transactional delivery outbox, durable delivery work, bounded retries, and asynchronous search indexing." width="1000" loading="eager">
+        </div>
+        <figcaption>Green marks proposed persistence, retry, and isolation boundaries. <a href="diagrams/proposed-architecture.svg">Open full diagram</a> · <a href="diagrams/proposed-architecture.mmd">Mermaid source</a></figcaption>
+      </figure>
+      <ul class="decisions">
+        <li><strong>Durability:</strong> accept ingestion only after durable append. Atomic result/outbox persistence is a required capability to validate.</li>
+        <li><strong>Containment:</strong> bound enrichment calls, retry attempts and age, and per-tenant/endpoint concurrency. Circuit-open work remains pending with delayed retry; enrichment is not silently skipped.</li>
+        <li><strong>Capacity:</strong> buffering buys finite time. Monitor oldest-event age and storage headroom; use explicit admission control before capacity is exhausted.</li>
+        <li><strong>Tradeoff:</strong> extra queues and relay operations add complexity. Search may lag; expose freshness and pending delivery states rather than implying completion.</li>
+      </ul>
+    </section>
+      <footer>Conceptual design exercise. Proposals are not deployed or measured results. No infrastructure provider is assumed.</footer>
+    </main>
+  </div>
+</body>
+</html>
