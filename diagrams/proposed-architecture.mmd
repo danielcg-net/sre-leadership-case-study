@@ -1,21 +1,22 @@
 flowchart TB
-    accTitle: Proposed webhook delivery architecture
-    accDescr: Ingestion accepts only after durable event storage. Under the synchronous request-response enrichment assumption, processing calls enrichment with bounded concurrency and atomically stores the enriched result and a delivery intent before acknowledging. An outbox relay dispatches delivery work. Delivery retries reuse the enriched payload without reprocessing. Tenant-aware dispatch, bounded retries, and a recovery queue contain failures. Dashboard indexing is asynchronous.
-    apps[Customer applications] --> gateway[API gateway: tenant admission limits]
-    gateway --> ingestion[Ingestion: validate and durably append]
-    ingestion --> bus[(Durable event buffer)]
-    bus --> processing[Processing: idempotent work and bounded concurrency]
-    processing <-->|Assumed synchronous call: deadline and circuit breaker| enrichment[Enrichment service]
-    processing -->|Atomic result and delivery intent, then acknowledge| store[(Event state and delivery outbox)]
-    store --> relay[Outbox relay: publish then mark dispatched]
-    relay --> queue[(Durable delivery work)]
-    queue --> delivery[Delivery: fair tenant dispatch and endpoint limits]
-    delivery --> endpoints[Customer webhook endpoints]
-    delivery -->|Persist outcome| store
-    delivery -.->|Retryable failure: delayed retry with jitter and budget| queue
-    delivery -->|Permanent failure or exhausted budget| recovery[(Recovery queue: controlled replay)]
-    store --> projection[Asynchronous search projection]
-    projection --> index[(Search index)]
-    index --> dashboard[Dashboard and API]
+    accTitle: Proposed design limited to three reliability priorities
+    accDescr: Priority one keeps accepted events replayable until an immutable result and delivery intent are stored and the existing search-index prerequisite is satisfied. Priority two bounds enrichment and delivery concurrency, separates delivery retries from processing, and retains exhausted work for recovery. Priority three uses stable delivery identities, leased attempts, conditional status updates and a recipient deduplication contract. A durable dispatcher claims ready intents directly; there is no separate delivery broker or asynchronous search projection in this scope.
+    ingress[Existing gateway and ingestion] -->|P1: accept only after durable append| bus[(Durable event buffer)]
+    bus -->|Retain replay ownership until ready or needs attention| processing[Processing: resume by tenant and event ID]
+    processing <-->|P2: assumed synchronous call, deadline and concurrency bound| enrichment[Enrichment service with circuit breaker]
+    processing -->|P1: atomic immutable result and waiting-index intent| store[(Event state and durable delivery intents)]
+    processing -->|Retained prerequisite: idempotent write| index[(Existing search index)]
+    index -->|Write acknowledgment required| gate[Processing: mark intent ready durably, then acknowledge input]
+    gate --> store
+    store -->|P1: claim due ready work with lease and token| delivery[Delivery dispatcher: P2 tenant and endpoint limits]
+    delivery -->|P3: stable key and immutable payload| endpoint[Customer endpoint: deduplication contract]
+    endpoint -.->|Acceptance, rejection or ambiguous response loss| delivery
+    delivery -->|P1 and P3: conditional outcome and next action commit| store
+    store -.->|P2: retry due after backoff and jitter| delivery
+    store -->|P1 and P2: expired leases, stale waiting work, exhausted budgets| recovery[Recovery owner: reconcile, retain needs-attention work]
+    recovery -->|Resume due delivery or retain for attention| store
+    recovery -.->|Resume stale indexing from saved result| processing
+    store -->|P3: authoritative per-delivery status| dashboard[Existing dashboard and API]
+    index -->|Existing event search, consistency unchanged| dashboard
     classDef change fill:#e8f3ee,stroke:#387358,color:#172c3a
-    class store,queue,delivery,recovery,projection change
+    class bus,processing,store,gate,delivery,recovery change

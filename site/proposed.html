@@ -19,27 +19,56 @@
         <a class="nav-child" href="failures.html"><span class="nav-number" aria-hidden="true">01.2</span><span>Failure priorities</span></a>
         <a href="proposed.html" aria-current="page"><span class="nav-number" aria-hidden="true">02</span><span>Proposed design</span></a>
         <a href="sequence.html"><span class="nav-number" aria-hidden="true">03</span><span>Delivery sequence</span></a>
+        <a href="future.html"><span class="nav-number" aria-hidden="true">04</span><span>Future scope</span></a>
       </nav>
       <a class="repository-link" href="https://github.com/danielcg-net/sre-leadership-case-study">Source repository ↗</a>
     </aside>
     <main id="content" tabindex="-1">
     <section id="proposed" aria-labelledby="proposed-title">
-      <p class="eyebrow">02 / Proposed design</p>
-      <h1 id="proposed-title">Separate durable processing from delivery retries</h1>
-      <p>Commit the enriched result and a delivery intent together before acknowledging processing. Deliver from durable work; retry the stored payload without re-running enrichment. Keep search indexing off the delivery-critical path.</p>
+      <p class="eyebrow">02 / Proposed design · Three priorities</p>
+      <h1 id="proposed-title">Preserve work, contain retries, make repetition safe</h1>
+      <p>One durable delivery intent owns each accepted event's next action. Processing and delivery retry independently; an ambiguous endpoint outcome reuses the same identity and payload. Scope follows the <a href="failures.html">three ranked priorities</a>.</p>
       <figure>
-        <div class="diagram-frame" role="region" aria-label="Proposed architecture diagram; scroll to explore" tabindex="0">
-        <img src="diagrams/proposed-architecture.svg" alt="Proposed flow separates processing, a transactional delivery outbox, durable delivery work, bounded retries, and asynchronous search indexing." width="1000" loading="eager">
+        <div class="diagram-frame" role="region" aria-label="Three-priority architecture diagram; scroll to explore" tabindex="0">
+          <img src="diagrams/proposed-architecture.svg" alt="Priority one preserves input and delivery ownership, priority two bounds enrichment and delivery retries, and priority three protects repeated delivery with stable keys, guarded state and recipient deduplication. Existing search indexing remains a prerequisite." width="1000" loading="eager">
         </div>
-        <figcaption>Green marks proposed persistence, retry, and isolation boundaries. <a href="diagrams/proposed-architecture.svg">Open full diagram</a> · <a href="diagrams/proposed-architecture.mmd">Mermaid source</a></figcaption>
+        <figcaption>P1: lost work. P2: retry amplification. P3: duplicate effects. <a href="diagrams/proposed-architecture.svg">Open full diagram</a> · <a href="diagrams/proposed-architecture.mmd">Mermaid source</a></figcaption>
       </figure>
-      <ul class="decisions">
-        <li><strong>Persistence assumption:</strong> the event store supports an atomic commit of the enriched result and delivery intent. Accept ingestion only after durable append; acknowledge processing only after this commit.</li>
-        <li><strong>Containment:</strong> under the synchronous enrichment assumption, bound call duration and in-flight requests, retry attempts and age, and per-tenant/endpoint concurrency. Circuit-open work remains pending with delayed retry; enrichment is not silently skipped.</li>
-        <li><strong>Capacity:</strong> buffering buys finite time. Monitor oldest-event age and storage headroom; use explicit admission control before capacity is exhausted.</li>
-        <li><strong>Delivery feedback:</strong> persist attempt outcomes and the next action before releasing work; reconcile stalled intents and inconsistent status. Expose failure reason, last attempt, next retry, unknown outcomes, terminal recovery state, and status freshness. Endpoint acceptance does not prove completion inside the customer system. Route platform recovery to operators and endpoint repair to the customer.</li>
-        <li><strong>Tradeoff:</strong> extra queues and relay operations add complexity. Search may lag; expose freshness and pending delivery states rather than implying completion.</li>
-      </ul>
+      <div class="pattern-table-frame" role="region" aria-label="Included mechanisms by priority; scroll horizontally on narrow screens" tabindex="0">
+        <table class="pattern-table">
+          <caption>Every included change has a priority owner</caption>
+          <thead><tr><th scope="col">Priority</th><th scope="col">Included changes</th><th scope="col">Required invariant</th><th scope="col">Verification</th></tr></thead>
+          <tbody>
+            <tr><th scope="row"><a href="failures.html#priority-loss">P1 · Accepted work loses its owner</a></th><td>Durable acceptance; atomic result/intent commit; acknowledge only after a durable handoff; leased claims and scoped reconciliation.</td><td>Every accepted event is replayable, durably pending, endpoint-accepted, or retained for attention. No acknowledgment relies on memory-only work.</td><td>Restart at each handoff and reconcile accepted IDs. <a href="failures.html#priority-loss">P1 production test</a>.</td></tr>
+            <tr><th scope="row"><a href="failures.html#priority-overload">P2 · Shared retry amplification</a></th><td>Enrichment deadlines, circuit breaker and concurrency bounds; delivery-only retries; tenant/endpoint limits; durable backoff and retry budgets.</td><td>A delivery retry never re-enters enrichment. Circuit-open and delayed work retains an owner; exhausted work is retained, not discarded.</td><td>Slow the test dependency and reject test deliveries; verify healthy-tenant latency, bounded attempts and backlog recovery. <a href="failures.html#priority-overload">P2 production test</a>.</td></tr>
+            <tr><th scope="row"><a href="failures.html#priority-duplicates">P3 · Ambiguous external effects</a></th><td>Immutable payload and stable delivery key; recipient deduplication contract; attempt tokens and conditional status updates; authoritative per-delivery status.</td><td>Every retry for the same destination carries the same key and payload. Stale attempts cannot overwrite accepted state. Recipient cooperation determines side-effect safety.</td><td>Lose a response after the test receiver commits its effect; retry and submit a stale failure update. <a href="failures.html#priority-duplicates">P3 production test</a>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <section class="priority-detail" aria-labelledby="ownership-title">
+        <h2 id="ownership-title">P1 · Make ownership survive each handoff</h2>
+        <p>Ingestion confirms acceptance only after durable append. Processing looks up the tenant/event ID before doing work. It atomically commits the immutable enriched result and a unique delivery intent in <code>waiting_index</code>. On replay, it resumes the saved result instead of enriching it again.</p>
+        <p>The existing index write remains a delivery prerequisite. After an idempotent index write is acknowledged, processing conditionally marks the intent <code>ready</code> and then acknowledges the input. A crash before readiness leaves input replayable; a crash after readiness finds the existing intent. A duplicate index write is safe by stable event identity. The index and event store still do not share a transaction.</p>
+        <p>Before the first result commit, processing failures may repeat enrichment. Defer input retries durably, bound their age/attempts, and persist a needs-attention record before acknowledging an exhausted or permanently failed event. Reconciliation identifies stale <code>waiting_index</code> work and resumes indexing from the saved payload.</p>
+        <p><strong>Persistence assumption:</strong> the event store supports atomic result/intent writes, uniqueness by tenant/event and destination, and conditional state changes. The input buffer supports durable replay and bounded redelivery. Retention must cover the recovery window. These capabilities are implementation prerequisites.</p>
+      </section>
+      <section class="priority-detail" aria-labelledby="retry-title">
+        <h2 id="retry-title">P2 · Retry delivery without repeating processing</h2>
+        <p>A dispatcher polls due intents directly from the store and claims them with a lease and attempt token. This store is the delivery work queue; a separate relay and delivery broker are unnecessary for this scope. Due-time lookup, lease contention and store capacity require peak-load validation.</p>
+        <p>Only <code>ready</code> or due-retry work can be claimed. Enforce per-tenant/endpoint limits, request deadlines, delayed backoff with jitter, and maximum attempts and age. Retry transient or ambiguous outcomes; permanent failures and exhausted budgets become durable <code>needs_attention</code> work with an owner. Circuit-open work is deferred without an outbound attempt, while its age limit still applies.</p>
+        <p>Commit the attempt outcome, next due time or terminal state, and lease release together under the current token. If that write fails, leave the claim recoverable. Expired in-flight claims are treated as potentially delivered and rescheduled under the same key and budget. No failed delivery is republished to the processing bus.</p>
+      </section>
+      <section class="priority-detail" aria-labelledby="duplicate-title">
+        <h2 id="duplicate-title">P3 · Protect ambiguous outcomes</h2>
+        <p>Snapshot the destination, delivery key and enriched payload in the intent. Scope the key by tenant, event and destination; reject conflicting payload reuse. Each claim has a new attempt token, but every external retry retains the same delivery key. Conditional updates prevent expired workers or late failures from regressing an accepted state; leases alone cannot stop overlapping external requests.</p>
+        <p>The recipient must persist the deduplication key atomically with its side effect, return the previous acceptance on duplicates, and retain keys through the retry and permitted replay window. A receiver that cannot do this may repeat effects. Endpoint acceptance does not establish completion of the customer's internal workflow.</p>
+        <p>The existing dashboard/API reads authoritative per-delivery status from the intent record: pending, in flight, retry due with an unknown outcome where applicable, endpoint accepted, or needs attention. Include last attempt, next action and state version. This is the minimum feedback needed for P1 recovery and P3 correctness; general event-search freshness and reporting remain outside this change.</p>
+      </section>
+      <section class="priority-detail" aria-labelledby="scope-title">
+        <h2 id="scope-title">Scope and residual risks</h2>
+        <p>Search outages can still delay readiness; the durable input and saved result make that delay recoverable, not harmless. Cross-view consistency, global delivery ordering, platform-wide admission redesign and multi-region recovery are deferred to <a href="future.html">04 Future scope</a>. Existing gateway authentication, tenant scoping and rate limits remain required.</p>
+        <p>The selected mechanisms apply <a href="patterns.html">durable delivery, atomic outgoing intent, idempotent receiver, retry, circuit breaker and bulkhead patterns</a>. Validation and rollout gates remain on <a href="failures.html#production-method">01.2 Failure priorities</a>; the exact runtime flow is on <a href="sequence.html">03 Delivery sequence</a>.</p>
+      </section>
     </section>
     </main>
   </div>
