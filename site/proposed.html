@@ -35,6 +35,7 @@
         <li><strong>Persistence assumption:</strong> the event store supports an atomic commit of the enriched result and delivery intent. Accept ingestion only after durable append; acknowledge processing only after this commit.</li>
         <li><strong>Containment:</strong> under the synchronous enrichment assumption, bound call duration and in-flight requests, retry attempts and age, and per-tenant/endpoint concurrency. Circuit-open work remains pending with delayed retry; enrichment is not silently skipped.</li>
         <li><strong>Capacity:</strong> buffering buys finite time. Monitor oldest-event age and storage headroom; use explicit admission control before capacity is exhausted.</li>
+        <li><strong>Delivery feedback:</strong> persist attempt outcomes and the next action before releasing work; reconcile stalled intents and inconsistent status. Expose failure reason, last attempt, next retry, unknown outcomes, terminal recovery state, and status freshness. Endpoint acceptance does not prove completion inside the customer system. Route platform recovery to operators and endpoint repair to the customer.</li>
         <li><strong>Tradeoff:</strong> extra queues and relay operations add complexity. Search may lag; expose freshness and pending delivery states rather than implying completion.</li>
       </ul>
     </section>
