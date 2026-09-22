@@ -32,7 +32,8 @@
         </div>
         <figcaption>Amber marks the acknowledgment and retry boundaries to examine. <a href="diagrams/current-architecture.svg">Open full diagram</a> · <a href="diagrams/current-architecture.mmd">Mermaid source</a></figcaption>
       </figure>
-      <p class="note"><strong>Open question:</strong> does acknowledgment on receipt leave any durable owner of unfinished work? Confirm the actual recovery contract before concluding that a crash loses events.</p>
+      <p class="note"><strong>Enrichment assumption:</strong> processing uses a synchronous request-response call to enrichment and needs the result before persisting or forwarding the event. This does not require blocking a worker thread.</p>
+      <p class="note"><strong>Recovery assumption:</strong> acknowledgment on receipt ends event-bus redelivery, and unfinished work has no separate durable recovery record. A crash before the result is persisted can therefore lose the event.</p>
     </section>
     </main>
   </div>

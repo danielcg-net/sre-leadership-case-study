@@ -9,7 +9,7 @@ sequenceDiagram
     participant D as Delivery
     participant E as Customer endpoint
     B->>P: Receive event
-    Note over P: Enrich once per successful processing attempt
+    Note over P: Obtain enrichment result before committing
     P->>S: Commit result + delivery intent atomically
     S-->>P: Durable commit confirmed
     P->>B: Acknowledge event
