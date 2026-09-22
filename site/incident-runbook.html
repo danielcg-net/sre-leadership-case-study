@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Runbook-Led Response: operating an enrichment degradation incident with clear accountability and evidence.">
+  <title>Runbook-Led Response | SRE leadership case study</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="layout">
+    <aside class="sidebar" aria-label="Case study navigation">
+      <a class="brand" href="index.html">SRE leadership<span>Webhook reliability</span></a>
+      <nav aria-label="Case study pages">
+        <p class="nav-heading">1 - Current Architecture</p>
+        <a href="index.html"><span class="nav-number" aria-hidden="true">1.1</span><span>Current Flow</span></a>
+        <a href="patterns.html"><span class="nav-number" aria-hidden="true">1.2</span><span>Architecture Patterns</span></a>
+        <a href="failures.html"><span class="nav-number" aria-hidden="true">1.3</span><span>Failure Priorities</span></a>
+        <p class="nav-heading">2 - Improvement Plan</p>
+        <a href="proposed.html"><span class="nav-number" aria-hidden="true">2.1</span><span>Proposed Design</span></a>
+        <a href="sequence.html"><span class="nav-number" aria-hidden="true">2.2</span><span>Delivery Sequence</span></a>
+        <a href="future.html"><span class="nav-number" aria-hidden="true">2.3</span><span>Future Scope</span></a>
+        <p class="nav-heading">3 - Leadership and Adoption</p>
+        <a href="ownership.html"><span class="nav-number" aria-hidden="true">3.1</span><span>Domains and Ownership</span></a>
+        <p class="nav-heading">4 - Reliability Evidence</p>
+        <a href="metrics.html"><span class="nav-number" aria-hidden="true">4.1</span><span>KPIs and Business Outcomes</span></a>
+        <a href="infrastructure.html"><span class="nav-number" aria-hidden="true">4.2</span><span>Infrastructure Reliability</span></a>
+        <p class="nav-heading">5 - Running an Incident</p>
+        <a href="incident-runbook.html" aria-current="page"><span class="nav-number" aria-hidden="true">5.1</span><span>Runbook-Led Response</span></a>
+        <a href="incident-ai.html"><span class="nav-number" aria-hidden="true">5.2</span><span>AI-Assisted Response</span></a>
+        <a href="incident-maturity.html"><span class="nav-number" aria-hidden="true">5.3</span><span>Automation Maturity</span></a>
+      </nav>
+      <a class="repository-link" href="https://github.com/danielcg-net/sre-leadership-case-study">Source repository ↗</a>
+    </aside>
+    <main id="content" tabindex="-1">
+    <section id="incident" aria-labelledby="incident-title">
+      <p class="eyebrow">5.1 / Runbook-Led Response</p>
+      <h1 id="incident-title">Protect customers, coordinate owners, verify recovery</h1>
+      <p><strong>At minute 15:</strong> enrichment is degraded, processing is stalling, and webhook delays and failures are spreading as the backlog grows. The dependency has already been identified. The response now focuses on containment, recovery and communication.</p>
+      <p>Both response models use the same objectives: preserve accepted work, protect unaffected customers, restore timely delivery, communicate impact, and reconcile the backlog. Automated monitoring, paging and established scaling belong in the runbook-led model too.</p>
+      <p><strong>Presentation plan:</strong> one minute for objectives and command; four for this response; three for <a href="incident-ai.html">AI assistance</a>; two for <a href="incident-maturity.html">maturity and validation</a>.</p>
+      <section class="priority-detail" aria-labelledby="command-title">
+        <h2 id="command-title">Command without line authority</h2>
+        <p>The Incident Commander coordinates priorities and decisions; an Operations Lead coordinates changes with service owners; a Communications Lead manages internal and external updates. SRE can assume command under a pre-agreed incident mandate without managing the teams. Each service owner retains responsibility for its production actions. Keep one incident channel and a timestamped decision record. This separation follows <a href="https://sre.google/workbook/incident-response/">established incident-management practice</a>.</p>
+        <p>Page Processing, Delivery and the actual enrichment owner now; engage Ingestion for admission and buffer protection. Assign the roles immediately if not already established. The architecture consensus board is not an incident-time approval gate.</p>
+      </section>
+      <div class="pattern-table-frame" role="region" aria-label="Runbook-led incident process; scroll horizontally on narrow screens" tabindex="0">
+        <table class="pattern-table">
+          <caption>Alert → declare → assess → mitigate → verify recovery → learn</caption>
+          <thead><tr><th scope="col">Stage</th><th scope="col">Accountable role</th><th scope="col">Action and evidence</th><th scope="col">Decision / proposed timing</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Detection</th><td>Service on-call</td><td>Page on delivery-timeliness deterioration including overdue pending work, supported by oldest backlog age and growth. Enrichment latency explains the symptom; it is not the sole customer-impact signal.</td><td>Target paging within five minutes of a sustained breach. Confirmed missing work or imminent buffer exhaustion warrants immediate paging. Test alert latency through drills.</td></tr>
+            <tr><th scope="row">First assessment</th><td>Operations Lead</td><td>Capture affected tenants, overdue deliveries, successful delivery throughput, oldest pending age, ingress health, buffer retention/headroom and accepted-work accounting.</td><td>Establish a timestamped baseline and trends. Missing telemetry is unknown; successful-only latency can conceal stranded work.</td></tr>
+            <tr><th scope="row">Severity and blast radius</th><td>Incident Commander</td><td>Assess tenant count and share, event volume, duration, critical workflows, regions if applicable, and risk to retained work. Include small tenants and compare affected versus healthy cohorts.</td><td>Provisional SEV-2 for material, growing multi-tenant degradation. SEV-1 for widespread critical workflow failure, suspected accepted-work loss, or imminent inability to retain it. Reassess as evidence changes.</td></tr>
+            <tr><th scope="row">Containment</th><td>Operations Lead + service owners</td><td>Use existing, tested concurrency and retry controls to reduce enrichment pressure. Preserve recoverable work. Consider throttling before buffer exhaustion, and inform Product/Business of customer consequences.</td><td>Scale enrichment only when its owner confirms capacity is the constraint and dependencies have headroom. Fail over only to a tested healthy alternative.</td></tr>
+            <tr><th scope="row">Escalation</th><td>Incident Commander</td><td>Route to the owning on-call, then backup and engineering manager. Directors/VPs resolve cross-team authority, resource and business conflicts.</td><td>Escalate an unacknowledged page after five minutes to backup, then after another five to the manager. Worsening severity or an authority blocker escalates immediately; do not wait for a timer.</td></tr>
+            <tr><th scope="row">Communications</th><td>Communications Lead</td><td>Brief responders, engineering leadership, Product/Business and Support/Customer Success. Publish customer impact and next update time; Customer Success handles account-specific outreach.</td><td>Initial internal update within five minutes of declaration; customer update within ten minutes of confirmed material impact. Then internal updates every ten minutes, external every fifteen, plus material changes.</td></tr>
+            <tr><th scope="row">Recovery</th><td>Incident Commander + owners</td><td>Restore traffic gradually. Verify stable enrichment latency, completion rate above arrival rate, falling backlog age, accepted-ID reconciliation and healthy-tenant protection.</td><td>Separate service restoration from backlog recovery. Resolve only after sustained health over an agreed observation window and pending work has an accounted-for outcome or explicit recovery owner.</td></tr>
+            <tr><th scope="row">Learning and follow-up</th><td>Service managers + SRE + Product</td><td>Preserve timeline and decisions. Review contributing conditions and response effectiveness without blame. Assign fixes to service owners with due dates and validation evidence; managers and Product fund them.</td><td>Draft review within two business days; review within five. SRE tracks whether fixes prevent recurrence through tests and measured outcomes.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><strong>Operating agreement:</strong> these severity definitions and timing targets are proposals, not existing policy. By minute 15, check for missed detection, paging and communication deadlines and act immediately; do not restart those clocks when the cause becomes known.</p>
+      <section class="priority-detail" aria-labelledby="containment-title">
+        <h2 id="containment-title">Respect the current architecture during mitigation</h2>
+        <p>Scaling Processing can send more concurrent calls into degraded enrichment and worsen the incident. The existing delivery retry path also repeats processing. Use only controls the service owners can safely operate now; the proposed durable-intent architecture is not assumed deployed.</p>
+        <p>Under the current acknowledgment-on-receipt assumption, pausing or restarting workers may lose in-memory work. Establish where each accepted event remains recoverable before changing consumption or terminating workers. Do not bypass enrichment, introduce an untested circuit breaker, or claim safe replay without an established recovery contract. If no safe control exists, escalate that constraint explicitly and prioritize retaining accepted work.</p>
+      </section>
+      <section class="priority-detail" aria-labelledby="message-title">
+        <h2 id="message-title">Customer update</h2>
+        <blockquote><p>Webhook delivery is delayed for some customers. We are reducing pressure on an internal dependency and monitoring recovery. We are validating the status of pending deliveries. Next update in 15 minutes.</p></blockquote>
+        <p>Use this wording only once the stated mitigation is underway. Include confirmed scope and timestamp where available. Do not promise a recovery time or “no data loss” before evidence supports it. Maintain one factual update for status-page and account communications.</p>
+        <p class="related-page">Continue to <a href="incident-ai.html">5.2 AI-Assisted Response</a>. Signals and definitions: <a href="metrics.html">4.1 KPIs and Business Outcomes</a>.</p>
+      </section>
+    </section>
+    </main>
+  </div>
+</body>
+</html>
