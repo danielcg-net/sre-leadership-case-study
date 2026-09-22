@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Proposed design: a provider-neutral webhook reliability case study.">
-  <title>Proposed design | SRE leadership case study</title>
+  <meta name="description" content="Proposed Design: a provider-neutral webhook reliability case study.">
+  <title>Proposed Design | SRE leadership case study</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -13,25 +13,25 @@
     <aside class="sidebar" aria-label="Case study navigation">
       <a class="brand" href="index.html">SRE leadership<span>Webhook reliability</span></a>
       <nav aria-label="Case study pages">
-        <p class="nav-heading">Current architecture</p>
-        <a href="index.html"><span class="nav-number" aria-hidden="true">01</span><span>Current flow</span></a>
-        <a class="nav-child" href="patterns.html"><span class="nav-number" aria-hidden="true">01.1</span><span>Architecture patterns</span></a>
-        <a class="nav-child" href="failures.html"><span class="nav-number" aria-hidden="true">01.2</span><span>Failure priorities</span></a>
-        <p class="nav-heading">Improvement plan</p>
-        <a href="proposed.html" aria-current="page"><span class="nav-number" aria-hidden="true">02</span><span>Proposed design</span></a>
-        <a href="sequence.html"><span class="nav-number" aria-hidden="true">03</span><span>Delivery sequence</span></a>
-        <a href="future.html"><span class="nav-number" aria-hidden="true">04</span><span>Future scope</span></a>
-        <p class="nav-heading">Leadership and adoption</p>
-        <a href="ownership.html"><span class="nav-number" aria-hidden="true">05</span><span>Domains and Ownership</span></a>
-        <p class="nav-heading">Reliability evidence</p>
-        <a href="metrics.html"><span class="nav-number" aria-hidden="true">06</span><span>KPIs and business outcomes</span></a>
-        <a href="infrastructure.html"><span class="nav-number" aria-hidden="true">07</span><span>Infrastructure reliability</span></a>
+        <p class="nav-heading">1 - Current Architecture</p>
+        <a href="index.html"><span class="nav-number" aria-hidden="true">1.1</span><span>Current Flow</span></a>
+        <a href="patterns.html"><span class="nav-number" aria-hidden="true">1.2</span><span>Architecture Patterns</span></a>
+        <a href="failures.html"><span class="nav-number" aria-hidden="true">1.3</span><span>Failure Priorities</span></a>
+        <p class="nav-heading">2 - Improvement Plan</p>
+        <a href="proposed.html" aria-current="page"><span class="nav-number" aria-hidden="true">2.1</span><span>Proposed Design</span></a>
+        <a href="sequence.html"><span class="nav-number" aria-hidden="true">2.2</span><span>Delivery Sequence</span></a>
+        <a href="future.html"><span class="nav-number" aria-hidden="true">2.3</span><span>Future Scope</span></a>
+        <p class="nav-heading">3 - Leadership and Adoption</p>
+        <a href="ownership.html"><span class="nav-number" aria-hidden="true">3.1</span><span>Domains and Ownership</span></a>
+        <p class="nav-heading">4 - Reliability Evidence</p>
+        <a href="metrics.html"><span class="nav-number" aria-hidden="true">4.1</span><span>KPIs and Business Outcomes</span></a>
+        <a href="infrastructure.html"><span class="nav-number" aria-hidden="true">4.2</span><span>Infrastructure Reliability</span></a>
       </nav>
       <a class="repository-link" href="https://github.com/danielcg-net/sre-leadership-case-study">Source repository ↗</a>
     </aside>
     <main id="content" tabindex="-1">
     <section id="proposed" aria-labelledby="proposed-title">
-      <p class="eyebrow">02 / Proposed design · Three priorities</p>
+      <p class="eyebrow">2.1 / Proposed Design</p>
       <h1 id="proposed-title">Preserve work, contain retries, make repetition safe</h1>
       <p>One durable delivery intent owns each accepted event's next action. Processing and delivery retry independently; an ambiguous endpoint outcome reuses the same identity and payload. Scope follows the <a href="failures.html">three ranked priorities</a>.</p>
       <figure>
@@ -72,8 +72,8 @@
       </section>
       <section class="priority-detail" aria-labelledby="scope-title">
         <h2 id="scope-title">Scope and residual risks</h2>
-        <p>Search outages can still delay readiness; the durable input and saved result make that delay recoverable, not harmless. Cross-view consistency, global delivery ordering, platform-wide admission redesign and multi-region recovery are deferred to <a href="future.html">04 Future scope</a>. Existing gateway authentication, tenant scoping and rate limits remain required.</p>
-        <p>The selected mechanisms apply <a href="patterns.html">durable delivery, atomic outgoing intent, idempotent receiver, retry, circuit breaker and bulkhead patterns</a>. Validation and rollout gates remain on <a href="failures.html#production-method">01.2 Failure priorities</a>; the exact runtime flow is on <a href="sequence.html">03 Delivery sequence</a>.</p>
+        <p>Search outages can still delay readiness; the durable input and saved result make that delay recoverable, not harmless. Cross-view consistency, global delivery ordering, platform-wide admission redesign and multi-region recovery are deferred to <a href="future.html">2.3 Future Scope</a>. Existing gateway authentication, tenant scoping and rate limits remain required.</p>
+        <p>The selected mechanisms apply <a href="patterns.html">durable delivery, atomic outgoing intent, idempotent receiver, retry, circuit breaker and bulkhead patterns</a>. Validation and rollout gates remain on <a href="failures.html#production-method">1.3 Failure Priorities</a>; the exact runtime flow is on <a href="sequence.html">2.2 Delivery Sequence</a>.</p>
       </section>
     </section>
     </main>
