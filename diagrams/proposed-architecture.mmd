@@ -1,11 +1,11 @@
 flowchart TB
     accTitle: Proposed webhook delivery architecture
-    accDescr: Ingestion accepts only after durable event storage. Processing calls enrichment with bounded concurrency and atomically stores the enriched result and a delivery intent before acknowledging. An outbox relay dispatches delivery work. Delivery retries reuse the enriched payload without reprocessing. Tenant-aware dispatch, bounded retries, and a recovery queue contain failures. Dashboard indexing is asynchronous.
+    accDescr: Ingestion accepts only after durable event storage. Under the synchronous request-response enrichment assumption, processing calls enrichment with bounded concurrency and atomically stores the enriched result and a delivery intent before acknowledging. An outbox relay dispatches delivery work. Delivery retries reuse the enriched payload without reprocessing. Tenant-aware dispatch, bounded retries, and a recovery queue contain failures. Dashboard indexing is asynchronous.
     apps[Customer applications] --> gateway[API gateway: tenant admission limits]
     gateway --> ingestion[Ingestion: validate and durably append]
     ingestion --> bus[(Durable event buffer)]
     bus --> processing[Processing: idempotent work and bounded concurrency]
-    processing <-->|Deadline and circuit breaker| enrichment[Enrichment service]
+    processing <-->|Assumed synchronous call: deadline and circuit breaker| enrichment[Enrichment service]
     processing -->|Atomic result and delivery intent, then acknowledge| store[(Event state and delivery outbox)]
     store --> relay[Outbox relay: publish then mark dispatched]
     relay --> queue[(Durable delivery work)]

@@ -32,8 +32,8 @@
         <figcaption>Green marks proposed persistence, retry, and isolation boundaries. <a href="diagrams/proposed-architecture.svg">Open full diagram</a> · <a href="diagrams/proposed-architecture.mmd">Mermaid source</a></figcaption>
       </figure>
       <ul class="decisions">
-        <li><strong>Durability:</strong> accept ingestion only after durable append. Atomic result/outbox persistence is a required capability to validate.</li>
-        <li><strong>Containment:</strong> bound enrichment calls, retry attempts and age, and per-tenant/endpoint concurrency. Circuit-open work remains pending with delayed retry; enrichment is not silently skipped.</li>
+        <li><strong>Persistence assumption:</strong> the event store supports an atomic commit of the enriched result and delivery intent. Accept ingestion only after durable append; acknowledge processing only after this commit.</li>
+        <li><strong>Containment:</strong> under the synchronous enrichment assumption, bound call duration and in-flight requests, retry attempts and age, and per-tenant/endpoint concurrency. Circuit-open work remains pending with delayed retry; enrichment is not silently skipped.</li>
         <li><strong>Capacity:</strong> buffering buys finite time. Monitor oldest-event age and storage headroom; use explicit admission control before capacity is exhausted.</li>
         <li><strong>Tradeoff:</strong> extra queues and relay operations add complexity. Search may lag; expose freshness and pending delivery states rather than implying completion.</li>
       </ul>
