@@ -10,6 +10,7 @@ The sidebar groups the pages by numbered domain:
 - **2 - Improvement Plan:** 2.1 Proposed Design (`proposed.html`), 2.2 Delivery Sequence (`sequence.html`), 2.3 Future Scope (`future.html`).
 - **3 - Leadership and Adoption:** 3.1 Domains and Ownership (`ownership.html`).
 - **4 - Reliability Evidence:** 4.1 KPIs and Business Outcomes (`metrics.html`), 4.2 Infrastructure Reliability (`infrastructure.html`).
+- **5 - Running an Incident:** 5.1 Runbook-Led Response (`incident-runbook.html`), 5.2 AI-Assisted Response (`incident-ai.html`), 5.3 Automation Maturity (`incident-maturity.html`).
 
 The proposed design and delivery sequence are limited to the three ranked reliability priorities. The pattern reference maps current challenges to candidate patterns, their fit, limits, and primary sources. Diagram frames scroll independently; full SVGs remain available. Previously shared section hash links still work.
 
