@@ -4,6 +4,8 @@ A case study in improving reliability for a multi-tenant webhook delivery platfo
 
 The [diagram site](https://danielcg-net.github.io/sre-leadership-case-study/) presents the current architecture, proposed architecture, and delivery/retry sequence. Proposals and assumptions are labeled; no infrastructure provider is assumed.
 
+Each section has its own page, linked by the sidebar: `index.html` (current flow), `proposed.html`, and `sequence.html`. Diagram frames scroll independently; full SVGs remain available. Previously shared section hash links still work.
+
 ## Build diagrams and site
 
 Use Node.js 24 (`.nvmrc`). Install locked dependencies with `npm ci`, then run `npm run check` to test the delivery policy and build the site. `npm run build` builds only the site. The build uses Mermaid CLI and its headless browser to generate accessible SVGs in `dist/diagrams/` and copies the static site into `dist/`.
