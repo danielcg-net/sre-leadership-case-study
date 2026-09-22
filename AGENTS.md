@@ -4,6 +4,8 @@
 
 Use the [SRE YouTrack project](https://bizyeet.youtrack.cloud/projects/SRE), with project key `SRE`, for all case-study work. Use the YouTrack MCP to manage issues. Keep case-study issues out of other projects. The associated repository is `danielcg-net/sre-leadership-case-study`.
 
+Follow [CONTRIBUTING.md](CONTRIBUTING.md): branch `sre-123/description`, PR title `SRE-123: Summary`, authored commit subject `sre-123: summary`, and matching canonical YouTrack URL in the PR body. Deliver through a PR; never bypass protections or push directly to `main`. Resolve an issue only after merge and passing checks.
+
 ## Neutral identity
 
 Never mention the source company's name in any output for this case. This includes prose, artifacts, diagrams, filenames, metadata, GitHub content, YouTrack content, and published pages. Use neutral terms such as "the platform" or "the webhook delivery platform". Do not copy source branding or publish the original exercise document.
