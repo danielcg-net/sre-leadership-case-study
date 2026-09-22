@@ -9,20 +9,40 @@
     "squash_merge_commit_title": "COMMIT_OR_PR_TITLE",
     "squash_merge_commit_message": "COMMIT_MESSAGES",
     "security_and_analysis": {
-      "secret_scanning": { "status": "enabled" },
-      "secret_scanning_push_protection": { "status": "enabled" },
-      "secret_scanning_non_provider_patterns": { "status": "enabled" },
-      "secret_scanning_validity_checks": { "status": "enabled" }
+      "secret_scanning": {
+        "status": "enabled"
+      },
+      "secret_scanning_push_protection": {
+        "status": "enabled"
+      },
+      "secret_scanning_non_provider_patterns": {
+        "status": "enabled"
+      },
+      "secret_scanning_validity_checks": {
+        "status": "enabled"
+      }
     }
   },
   "branchProtection": {
     "required_status_checks": {
       "strict": true,
       "checks": [
-        { "context": "build", "app_id": 15368 },
-        { "context": "Analyze JavaScript", "app_id": 15368 },
-        { "context": "Review dependency changes", "app_id": 15368 },
-        { "context": "Validate YouTrack delivery", "app_id": 15368 }
+        {
+          "context": "build",
+          "app_id": 15368
+        },
+        {
+          "context": "Analyze JavaScript",
+          "app_id": 15368
+        },
+        {
+          "context": "Review dependency changes",
+          "app_id": 15368
+        },
+        {
+          "context": "Validate YouTrack delivery",
+          "app_id": 15368
+        }
       ]
     },
     "enforce_admins": true,
@@ -46,7 +66,10 @@
     "can_approve_pull_request_reviews": false
   },
   "autolinks": [
-    { "key_prefix": "SRE-", "url_template": "https://bizyeet.youtrack.cloud/issue/SRE-<num>", "is_alphanumeric": false },
-    { "key_prefix": "sre-", "url_template": "https://bizyeet.youtrack.cloud/issue/SRE-<num>", "is_alphanumeric": false }
+    {
+      "key_prefix": "SRE-",
+      "url_template": "https://bizyeet.youtrack.cloud/issue/SRE-<num>",
+      "is_alphanumeric": false
+    }
   ]
 }
