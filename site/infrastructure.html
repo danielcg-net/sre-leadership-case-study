@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Evidence, tradeoffs and validation for recovery, replication, caching and infrastructure capacity.">
+  <title>Infrastructure reliability | SRE leadership case study</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="layout">
+    <aside class="sidebar" aria-label="Case study navigation">
+      <a class="brand" href="index.html">SRE leadership<span>Webhook reliability</span></a>
+      <nav aria-label="Case study pages">
+        <p class="nav-heading">Current architecture</p>
+        <a href="index.html"><span class="nav-number" aria-hidden="true">01</span><span>Current flow</span></a>
+        <a class="nav-child" href="patterns.html"><span class="nav-number" aria-hidden="true">01.1</span><span>Architecture patterns</span></a>
+        <a class="nav-child" href="failures.html"><span class="nav-number" aria-hidden="true">01.2</span><span>Failure priorities</span></a>
+        <p class="nav-heading">Improvement plan</p>
+        <a href="proposed.html"><span class="nav-number" aria-hidden="true">02</span><span>Proposed design</span></a>
+        <a href="sequence.html"><span class="nav-number" aria-hidden="true">03</span><span>Delivery sequence</span></a>
+        <a href="future.html"><span class="nav-number" aria-hidden="true">04</span><span>Future scope</span></a>
+        <p class="nav-heading">Leadership and adoption</p>
+        <a href="ownership.html"><span class="nav-number" aria-hidden="true">05</span><span>Domains and Ownership</span></a>
+        <p class="nav-heading">Reliability evidence</p>
+        <a href="metrics.html"><span class="nav-number" aria-hidden="true">06</span><span>KPIs and business outcomes</span></a>
+        <a href="infrastructure.html" aria-current="page"><span class="nav-number" aria-hidden="true">07</span><span>Infrastructure reliability</span></a>
+      </nav>
+      <a class="repository-link" href="https://github.com/danielcg-net/sre-leadership-case-study">Source repository ↗</a>
+    </aside>
+    <main id="content" tabindex="-1">
+    <section id="infrastructure" aria-labelledby="infrastructure-title">
+      <p class="eyebrow">07 / Infrastructure reliability</p>
+      <h1 id="infrastructure-title">Prove recovery, freshness and capacity before expanding the design</h1>
+      <p>This section evaluates infrastructure risks and future options against <a href="metrics.html">06 KPIs and business outcomes</a>. It does not add multi-region, caching or a new scaling architecture to the active <a href="proposed.html">three-priority proposal</a>. Each investment needs measured evidence and the <a href="ownership.html#board">architecture review and prioritization process</a>.</p>
+      <div class="page-jumps" aria-label="On this page"><a href="#state">Evidence register</a><a href="#recovery">Recovery and failover</a><a href="#consistency">Replication and caching</a><a href="#capacity">Scaling and capacity</a><a href="#operations">Operational dependencies</a><a href="#validation">Validation and decisions</a></div>
+      <section class="priority-detail" id="state" aria-labelledby="state-title">
+        <h2 id="state-title">Current evidence register</h2>
+        <p><strong>Known:</strong> a globally used, multi-tenant platform, millions of events daily, peaks of tens of thousands per second, and a target of at least 99.9% ingestion/delivery availability. Global usage does not establish multi-region deployment. The scenario specifies no infrastructure topology, replication guarantees, caching policy, scaling configuration, backup evidence or recovery objectives.</p>
+        <p><strong>Assessment state:</strong> all infrastructure controls below are unverified, not presumed absent or healthy. Proposed owners gather topology and failure-domain maps, runtime configuration, capacity tests and drill results. Record evidence date, coverage and gaps; mark a control verified only within the conditions actually tested.</p>
+        <p><strong>Existing design prerequisites:</strong> durable replay, atomic result/intent creation, uniqueness, conditional transitions, retention and bounded retry/concurrency are already required by P1–P3. Their implementation must be validated even while broader infrastructure changes remain future scope. In particular, index completion still gates delivery readiness.</p>
+      </section>
+      <section class="priority-detail" id="recovery" aria-labelledby="recovery-title">
+        <h2 id="recovery-title">Recovery, multi-region and failover</h2>
+        <p><strong>Decision trigger:</strong> the measured ability to survive a failure domain cannot meet the customer recovery objective, or the business exposure justifies the added cost. Product and Business define tolerable interruption and accepted-data loss; managers fund the option. Proposed lead: the confirmed infrastructure operator, with Ingestion, Processing and Delivery owning their recovery contracts.</p>
+        <p>Agree RTO (maximum time from disruption to restored customer service) and RPO (maximum acceptable loss of accepted data, expressed as a recovery point and event count). Measure detection, decision, fencing, promotion/restore, routing, dependency readiness and validation separately. Report backlog clearance time in addition to restoration; a healthy endpoint with hours of undelivered work is not full recovery.</p>
+        <div class="pattern-table-frame" role="region" aria-label="Recovery options and tradeoffs; scroll horizontally on narrow screens" tabindex="0">
+          <table class="pattern-table">
+            <caption>Options to compare after agreeing RTO and RPO</caption>
+            <thead><tr><th scope="col">Option</th><th scope="col">Readiness</th><th scope="col">Cost and risk</th><th scope="col">Required proof</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Backup and restore / cold recovery</th><td>Provision or restore capacity and data after failure.</td><td>Lower standby compute cost; recovery depends on restore speed, retained data, access, quotas and deploy artifacts.</td><td>Restore into an isolated environment, reconcile accepted IDs and measure total service recovery plus backlog drain against objectives.</td></tr>
+              <tr><th scope="row">Warm standby</th><td>Replicated state and reduced running capacity; scale before taking full traffic.</td><td>Ongoing replication and standby cost; lag and warmup can dominate recovery.</td><td>Prove replication recovery point, scale-up under available quotas and dependency capacity before traffic shift.</td></tr>
+              <tr><th scope="row">Hot standby / active-active</th><td>Hot standby has ready capacity; active-active also serves traffic in multiple locations.</td><td>Higher steady cost and operational complexity. Active-active additionally requires global or partitioned ownership and conflict semantics.</td><td>Prove old writers/dispatchers are fenced, one owner per delivery survives partitions, and failback preserves outcomes and original delivery keys.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><strong>Failover contract:</strong> detect failure with independent customer-path probes; verify destination capacity, replication position and dependencies. Fence the previous writer and dispatcher before promotion; routing alone does not stop old workers. If authority cannot be established during a partition, pause affected claims rather than create two owners. Preserve event IDs, payloads, destination identity and deduplication history across promotion. Ambiguous customer effects remain ambiguous after failover.</p>
+        <p><strong>Failback and backups:</strong> resynchronize and reconcile divergent state before a controlled return; never automatically overwrite the newer accepted state with a stale copy. Maintain recoverable backups independent of the live replication failure domain and test credentials, keys and restore access. Replication can reproduce corruption or deletion and is not a substitute for a tested restore. <a href="https://sre.google/sre-book/data-integrity/">Google SRE's data-integrity guidance</a> grounds this recovery distinction.</p>
+        <p><strong>Proof:</strong> rehearse a scoped failure and return path, measure accepted-data gaps and customer-minutes, and verify all P1–P3 invariants. Do not infer a whole-region RTO from a single worker restart. Record the tested failure domain and residual risk.</p>
+      </section>
+      <section class="priority-detail" id="consistency" aria-labelledby="consistency-title">
+        <h2 id="consistency-title">Replication lag and API caching</h2>
+        <h3>Replication and read freshness</h3>
+        <p><strong>Evidence / owner:</strong> storage and search operators, coordinated by Processing, document acknowledgment durability, replica positions, lag distributions and read routing. Delivery owns correctness of intent reads and claims. Search visibility, replicated state and authoritative delivery status are separate boundaries.</p>
+        <p><strong>Tradeoff:</strong> synchronous replication can increase write latency or restrict writes during a partition; asynchronous replication permits lag and possible loss of recently accepted writes on promotion. Neither choice may silently weaken the atomic/conditional intent contract. Dispatcher claims need the authoritative coordination path; stale replicas cannot arbitrate ownership.</p>
+        <p><strong>Trigger and test:</strong> compare committed-to-applied lag and measured recovery gaps with RPO, and customer-visible version lag with freshness bound F. Delay replication in a controlled test, exercise reads and promotion, and reconcile accepted IDs. Reduce lag or change the contract if these objectives fail; do not advertise zero loss from a replication-health indicator alone.</p>
+        <h3>Cache only where the product permits staleness</h3>
+        <p><strong>Evidence / owner:</strong> Dashboard/API owner with Delivery and the gateway/security owner inventories cacheable routes, cache keys, authorization behavior, invalidation and origin load. No cache is assumed to exist. A proposal is justified by measured read latency or origin pressure, with a stated freshness bound and cost benefit.</p>
+        <p><strong>Proposed boundary:</strong> begin with immutable or explicitly cacheable reads. Keep per-delivery authoritative status uncached until version/freshness behavior is proven. Cache lookup must respect authorization and tenant boundaries, including permission changes; keys include the relevant tenant, resource, query and representation dimensions. Do not cache authentication decisions or sensitive responses by default. HTTP directives and authenticated-response rules must follow <a href="https://www.rfc-editor.org/rfc/rfc9111.html">RFC 9111</a>; <code>no-cache</code> requires validation, while <code>no-store</code> prohibits storage by compliant caches.</p>
+        <p><strong>Tradeoff and proof:</strong> higher hit rate can reduce cost while hiding stale status. Test cross-tenant requests, credential revocation, invalidation, cache outage and simultaneous expiry. Bound origin fallback concurrency to prevent a cache failure from overwhelming storage. If Product permits stale reads during an outage, show freshness explicitly and never present them as authoritative delivery confirmation. Pass on isolation and freshness, not hit ratio alone.</p>
+      </section>
+      <section class="priority-detail" id="capacity" aria-labelledby="capacity-title">
+        <h2 id="capacity-title">Hot/cold scaling, buffers and dependency capacity</h2>
+        <p><strong>Evidence / owners:</strong> each service team measures safe throughput per worker, startup-to-ready time, resource/connection limits and dependency saturation; the infrastructure operator owns provisioned capacity and quotas. Ingestion coordinates buffer headroom; Processing and Delivery own their stage recovery rate.</p>
+        <p><strong>Warmth and tradeoff:</strong> keep ready minimum capacity for the agreed normal latency and outage margin; cold capacity saves idle cost but adds provisioning, startup, connection and cache warmup delay. Warm pools sit between those options. Recovery standby readiness and autoscaling are separate decisions: a second region can still lack usable capacity.</p>
+        <p><strong>Scale signal:</strong> combine arrival rate, oldest pending age, backlog growth and resource saturation. Use measured startup time to scale ahead of exhaustion, with stabilization/hysteresis to avoid oscillation. Scale-in stops new claims and drains in-flight work before shutdown; abandoned leases recover with the same delivery identity. Adding workers cannot fix a saturated enrichment service or datastore; enforce existing concurrency and tenant budgets. <a href="https://sre.google/sre-book/handling-overload/">Handling overload</a> explains why dependency-aware limits matter.</p>
+        <p><strong>Capacity arithmetic:</strong> for a stable workload, approximate backlog drain time as B / (μ − λ), where B is pending work, λ is new obligations/sec and μ is sustainable completion/sec. If μ ≤ λ, the backlog will not drain. Estimate time-to-full as free buffer bytes / positive net growth in bytes/sec. These estimates require representative event sizes, retry load and stage measurements; aggregate averages can conceal a blocked tenant.</p>
+        <p><strong>Trigger and proof:</strong> tested surviving capacity must support peak demand plus recovery headroom inside retention and the agreed recovery window. Run bursts, a worker/failure-domain loss, slow enrichment, cold starts and scale-in. Verify healthy tenants remain within objective and the backlog drains without exceeding storage, connection or endpoint limits. Agree admission behavior before capacity runs out; rejecting before durable acceptance is preferable to acknowledging work the system cannot retain.</p>
+      </section>
+      <section class="priority-detail" id="operations" aria-labelledby="operations-title">
+        <h2 id="operations-title">Operational dependencies that can defeat the design</h2>
+        <div class="pattern-table-frame" role="region" aria-label="Additional infrastructure controls and verification; scroll horizontally on narrow screens" tabindex="0">
+          <table class="pattern-table">
+            <caption>Unverified controls to inventory and test</caption>
+            <thead><tr><th scope="col">Area / proposed owner</th><th scope="col">Customer risk</th><th scope="col">Evidence / decision trigger</th><th scope="col">Validation and tradeoff</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">DNS, routing, TLS and credentials<br>Gateway/network operator + Delivery</th><td>Healthy services are unreachable; certificate or credential expiry stops ingestion or delivery.</td><td>Independent resolution/connect/TLS/auth probes, expiry and rotation status, network errors; act before remaining lifetime is shorter than the tested repair window.</td><td>Exercise rotation, DNS/routing failure and recovery access on test endpoints. Account for cached routes and open connections; extra routing redundancy adds complexity.</td></tr>
+              <tr><th scope="row">Deployments and schema evolution<br>Processing + Delivery Principals</th><td>Mixed versions corrupt shared intent states or double-dispatch work.</td><td>Canary outcomes, schema compatibility matrix and rollback evidence; any P1/P3 regression stops rollout.</td><td>Test old/new readers, expand/contract migration and rollback with pending work. Keep one dispatcher authority; staged changes cost time but preserve recoverability.</td></tr>
+              <tr><th scope="row">Observability and control-plane access<br>SRE + infrastructure operator</th><td>Telemetry loss looks healthy or the team cannot mitigate during an outage.</td><td>Telemetry freshness, independent probes, alert delivery and recovery-access drill results; missing coverage is unknown.</td><td>Interrupt the test telemetry path and verify an independent stale-signal alert. Rehearse audited emergency access without relying on the failed dependency; avoid broad permanent privilege.</td></tr>
+              <tr><th scope="row">Tenant and failure-domain isolation<br>Service teams + infrastructure operator</th><td>One tenant or shared dependency exhausts all workers, connections or storage.</td><td>Per-cohort saturation and customer-minutes, contention and topology evidence; invest when scoped P2 limits cannot contain impact.</td><td>Load one tenant while observing others; exercise a dependency failure. Stronger partitions may reduce pooling efficiency and increase cost.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section class="priority-detail" id="validation" aria-labelledby="validation-title">
+        <h2 id="validation-title">From unverified control to funded improvement</h2>
+        <ol class="decisions">
+          <li><strong>Inventory:</strong> managers confirm the actual infrastructure owners and collect dated evidence for every section. Record current behavior, not inferred product capabilities.</li>
+          <li><strong>Set the decision:</strong> Product/Business agree RTO, RPO, freshness, peak demand and cost limits using <a href="metrics.html#decisions">the KPI decision record</a>. Compare the smallest adequate option with the cost of inaction.</li>
+          <li><strong>Review and fund:</strong> the consensus board resolves cross-domain tradeoffs. Managers and Principals commit dependencies and capacity. Approved future work gets separate tickets; documentation alone does not expand P1–P3.</li>
+          <li><strong>Validate safely:</strong> start with isolated restoration/load tests, then approved synthetic tenants and scoped production drills with a named incident lead, stop criteria and rollback. Broader failure-domain exercises require explicit operational approval.</li>
+          <li><strong>Accept evidence:</strong> reconcile every accepted test ID, verify delivery identity and status, measure recovery and healthy-tenant impact, and report cost. Stop for missing work, conflicting owners, isolation failure or breached customer objectives. Repeat after material topology, capacity or schema changes; retain the last verified date and conditions.</li>
+        </ol>
+        <p class="related-page">The deferred work remains indexed in <a href="future.html">04 Future scope</a>; operational accountability is defined in <a href="ownership.html">05 Domains and Ownership</a>.</p>
+      </section>
+    </section>
+    </main>
+  </div>
+</body>
+</html>
