@@ -28,12 +28,40 @@
       <p>Processing acknowledges on receipt. Every failed delivery returns to the event bus and repeats processing, including enrichment. Slow enrichment and delivery retries can therefore compound the backlog.</p>
       <figure>
         <div class="diagram-frame" role="region" aria-label="Current architecture diagram; scroll to explore" tabindex="0">
-        <img src="diagrams/current-architecture.svg" alt="Current flow: ingestion to event bus, processing and enrichment, then storage and delivery. Failed delivery returns to the event bus." width="1000" loading="eager">
+        <img src="diagrams/current-architecture.svg" alt="Current flow assumes enrichment and both storage write acknowledgments precede delivery. Dashboard and API reads are independent. Failed delivery returns to the event bus." width="1000" loading="eager">
         </div>
         <figcaption>Amber marks the acknowledgment and retry boundaries to examine. <a href="diagrams/current-architecture.svg">Open full diagram</a> · <a href="diagrams/current-architecture.mmd">Mermaid source</a></figcaption>
       </figure>
-      <p class="note"><strong>Enrichment assumption:</strong> processing uses a synchronous request-response call to enrichment and needs the result before persisting or forwarding the event. This does not require blocking a worker thread.</p>
-      <p class="note"><strong>Recovery assumption:</strong> acknowledgment on receipt ends event-bus redelivery, and unfinished work has no separate durable recovery record. A crash before the result is persisted can therefore lose the event.</p>
+      <div class="assumptions" aria-labelledby="assumptions-title">
+        <h2 id="assumptions-title">Assumptions and architectural impact</h2>
+        <ol>
+          <li>
+            <h3>Enrichment gates processing</h3>
+            <p><strong>Assumption:</strong> processing uses synchronous request-response enrichment and needs the result before writing or forwarding the event. This is a completion dependency, not a requirement to block a worker thread.</p>
+            <p><strong>Impact:</strong> slow enrichment increases in-flight work and delays every later stage. Finite concurrency fills up, and retries compete with new events for the same capacity.</p>
+          </li>
+          <li>
+            <h3>Both persistence writes gate delivery</h3>
+            <p><strong>Assumption:</strong> processing waits for successful datastore and search-index write acknowledgments before handing the event to delivery. The writes may run in parallel, but do not share an atomic transaction. An index write acknowledgment need not mean the event is already searchable.</p>
+            <p><strong>Impact:</strong> either write can delay delivery after enrichment completes. One write can succeed while the other fails, leaving inconsistent views and partial work to recover. Reprocessing repeats enrichment and writes, adding load to already degraded dependencies.</p>
+          </li>
+          <li>
+            <h3>Dashboard/API reads are independent of delivery</h3>
+            <p><strong>Assumption:</strong> the dashboard and API read stored event and delivery status on demand; processing does not wait for a UI refresh or API read. Delivery outcomes are recorded separately after attempts.</p>
+            <p><strong>Impact:</strong> dashboard/API serving is not another delivery gate. An event can appear before delivery succeeds; index refresh delays or failed status writes can leave its displayed state stale. Shared storage load can still degrade reads. Visibility is not proof of delivery.</p>
+          </li>
+          <li>
+            <h3>A failed attempt can repeat a successful side effect</h3>
+            <p><strong>Assumption:</strong> timeouts and lost responses count as failed attempts, even if the customer endpoint accepted the event. Neither repeated processing nor recipient handling is guaranteed to be idempotent.</p>
+            <p><strong>Impact:</strong> republishing can cause duplicate deliveries and customer side effects. Repeated writes may create duplicate records without a stable key or unique constraint, and repeated enrichment may change the payload. A definite rejection need not duplicate a successful delivery; an ambiguous outcome can.</p>
+          </li>
+          <li>
+            <h3>Persisted events can become stranded</h3>
+            <p><strong>Assumption:</strong> acknowledgment on receipt ends event-bus redelivery. No durable delivery intent or reconciliation process recovers a lost handoff or retry publication.</p>
+            <p><strong>Impact:</strong> a crash before persistence can lose unfinished work. A crash after persistence but before handoff, or a failed retry publication, can leave a dashboard-visible event with no remaining delivery work. A downstream outage alone causes delay while retries survive; permanent stranding requires this recovery gap. Stored events therefore need durable delivery ownership and reconciliation.</p>
+          </li>
+        </ol>
+      </div>
     </section>
     </main>
   </div>
