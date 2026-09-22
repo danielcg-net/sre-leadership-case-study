@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Established architecture patterns mapped to webhook reliability challenges, with fit, limits, and primary references.">
+  <title>Architecture patterns | SRE leadership case study</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="layout">
+    <aside class="sidebar" aria-label="Case study navigation">
+      <a class="brand" href="index.html">SRE leadership<span>Webhook reliability</span></a>
+      <p class="nav-heading">Architecture</p>
+      <nav aria-label="Case study pages">
+        <a href="index.html"><span class="nav-number" aria-hidden="true">01</span><span>Current flow</span></a>
+        <a class="nav-child" href="patterns.html" aria-current="page"><span class="nav-number" aria-hidden="true">01.1</span><span>Architecture patterns</span></a>
+        <a href="proposed.html"><span class="nav-number" aria-hidden="true">02</span><span>Proposed design</span></a>
+        <a href="sequence.html"><span class="nav-number" aria-hidden="true">03</span><span>Delivery sequence</span></a>
+      </nav>
+      <a class="repository-link" href="https://github.com/danielcg-net/sre-leadership-case-study">Source repository ↗</a>
+    </aside>
+    <main id="content" tabindex="-1">
+    <section id="patterns" aria-labelledby="patterns-title">
+      <p class="eyebrow">01.1 / Current architecture · Pattern reference</p>
+      <h1 id="patterns-title">Architecture patterns for the mapped challenges</h1>
+      <p>These established patterns provide a vocabulary for evaluating the current failure modes. Each is a candidate with a specific purpose and tradeoff; selection follows the completed current-state analysis.</p>
+      <p>Challenge links return to the relevant assumption or behavior in <a href="index.html">Current flow</a>. Pattern links point to the original catalog or authoritative architecture guidance; the applications below are specific to this case.</p>
+      <div class="pattern-table-frame" role="region" aria-label="Architecture pattern comparison; scroll horizontally on narrow screens" tabindex="0">
+        <table class="pattern-table">
+          <caption>Current challenge, candidate pattern, fit, and limits</caption>
+          <thead><tr><th scope="col">Current challenge</th><th scope="col">Established pattern</th><th scope="col">Why it fits</th><th scope="col">Limits and tradeoffs</th></tr></thead>
+          <tbody>
+            <tr>
+              <th scope="row"><a href="index.html#stranded-events">Acknowledged work can lose its durable owner</a></th>
+              <td><a href="https://www.enterpriseintegrationpatterns.com/patterns/messaging/GuaranteedMessaging.html">Guaranteed Delivery</a></td>
+              <td>Persistent messages and acknowledgment boundaries keep work recoverable across a crash until a durable receiver takes responsibility.</td>
+              <td>Requires persistent storage and correct acknowledgment timing at each handoff. It does not guarantee eventual acceptance by an unavailable customer endpoint or completion inside that customer's system.</td>
+            </tr>
+            <tr>
+              <th scope="row"><a href="index.html#stranded-events">A result is stored but its delivery handoff is lost</a></th>
+              <td><a href="https://microservices.io/patterns/data/transactional-outbox">Transactional Outbox</a></td>
+              <td>Commits the result and an outgoing delivery intent in one local transaction. A relay can resume publication after a crash, closing the gap between persistence and messaging.</td>
+              <td>Needs a shared transaction boundary for state and intent, plus relay operations. Publication can duplicate messages. It does not atomically commit the search index or the customer's side effect.</td>
+            </tr>
+            <tr>
+              <th scope="row"><a href="index.html#duplicate-effects">Retries repeat processing or customer side effects</a></th>
+              <td><a href="https://www.enterpriseintegrationpatterns.com/patterns/messaging/IdempotentReceiver.html">Idempotent Receiver</a></td>
+              <td>Uses deduplication or operations with the same effect on repetition, making repeated receipt safe after ambiguous failures.</td>
+              <td>Needs a stable identity and a defined deduplication scope and retention period. Platform-side deduplication cannot enforce idempotency inside a customer endpoint the platform does not control.</td>
+            </tr>
+            <tr>
+              <th scope="row"><a href="index.html#retry-amplification">Transient faults and persistent outages trigger repeated work</a></th>
+              <td><a href="https://learn.microsoft.com/en-us/azure/architecture/patterns/retry">Retry</a> and <a href="https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker">Circuit Breaker</a></td>
+              <td>Retry handles recoverable failures with controlled spacing and limits. A circuit breaker temporarily stops calls to a persistently failing dependency, allowing recovery.</td>
+              <td>Requires failure classification, deadlines, and coordinated retry budgets. Layered retries multiply load. Circuit-open work still needs a durable owner; neither pattern removes duplicate side effects.</td>
+            </tr>
+            <tr>
+              <th scope="row"><a href="index.html#retry-amplification">One tenant or endpoint consumes shared capacity</a></th>
+              <td><a href="https://learn.microsoft.com/en-us/azure/architecture/patterns/bulkhead">Bulkhead</a></td>
+              <td>Separates resource pools or concurrency budgets so slow endpoints and high-volume tenants cannot consume every delivery slot.</td>
+              <td>Isolation can leave capacity unused and adds scheduling complexity. Shared brokers, storage, and enrichment remain possible bottlenecks; isolation must cover the actual constrained resources.</td>
+            </tr>
+            <tr>
+              <th scope="row"><a href="index.html#retry-amplification">Undeliverable events can circulate indefinitely</a></th>
+              <td><a href="https://www.enterpriseintegrationpatterns.com/patterns/messaging/DeadLetterChannel.html">Dead Letter Channel</a></td>
+              <td>Separates work that cannot be delivered from normal traffic, preserving it for diagnosis and controlled recovery.</td>
+              <td>A holding area does not fix the failure. It needs an owner, retention policy, alerts, and safe replay rules; customers still need a visible terminal or needs-attention status.</td>
+            </tr>
+            <tr>
+              <th scope="row"><a href="index.html#persistence-gates">Search writes gate delivery</a>; <a href="index.html#consistency">read views diverge</a></th>
+              <td><a href="https://microservices.io/patterns/data/cqrs.html">CQRS and materialized views</a></td>
+              <td>Separates state-changing operations from read projections. It provides a model for a search/dashboard view that updates independently of delivery-critical state.</td>
+              <td>Introduces projection lag, replay/rebuild operations, and ordering concerns. It does not automatically repair lost updates or prevent stale status from overwriting newer state. CQRS does not require event sourcing.</td>
+            </tr>
+            <tr>
+              <th scope="row"><a href="index.html#status-feedback">Event progress and delivery attempts are hard to reconstruct</a></th>
+              <td><a href="https://www.enterpriseintegrationpatterns.com/patterns/messaging/MessageHistory.html">Message History</a></td>
+              <td>Records the stages a message traverses. Associated event and attempt identities help explain where processing stopped and which attempts produced customer-visible status.</td>
+              <td>History has storage, retention, and privacy costs. An audit trail is evidence, not durable work ownership, guaranteed status convergence, or proof of customer processing.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="related-page">Use the <a href="index.html#assumptions-title">current-state assumptions</a> to distinguish established behavior from assumed failure modes before choosing a pattern.</p>
+    </section>
+    </main>
+  </div>
+</body>
+</html>
