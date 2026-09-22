@@ -19,21 +19,31 @@
         <a class="nav-child" href="failures.html"><span class="nav-number" aria-hidden="true">01.2</span><span>Failure priorities</span></a>
         <a href="proposed.html"><span class="nav-number" aria-hidden="true">02</span><span>Proposed design</span></a>
         <a href="sequence.html" aria-current="page"><span class="nav-number" aria-hidden="true">03</span><span>Delivery sequence</span></a>
+        <a href="future.html"><span class="nav-number" aria-hidden="true">04</span><span>Future scope</span></a>
       </nav>
       <a class="repository-link" href="https://github.com/danielcg-net/sre-leadership-case-study">Source repository ↗</a>
     </aside>
     <main id="content" tabindex="-1">
     <section id="sequence" aria-labelledby="sequence-title">
-      <p class="eyebrow">03 / Proposed delivery sequence</p>
-      <h1 id="sequence-title">At-least-once delivery needs explicit duplicate handling</h1>
-      <p>The retry reuses the event ID and enriched payload. A lost response or a worker crash can repeat a delivery even when the endpoint already accepted it. Recipient deduplication is part of the integration contract.</p>
+      <p class="eyebrow">03 / Delivery sequence · Three priorities</p>
+      <h1 id="sequence-title">A lost response must not lose work or change retry identity</h1>
+      <p>This sequence follows one event from durable processing ownership to a customer acceptance whose response is lost. The dispatcher retries the saved intent directly; the cooperating receiver recognizes the delivery key and does not repeat the effect.</p>
       <figure>
-        <div class="diagram-frame sequence-frame" role="region" aria-label="Delivery sequence diagram; scroll to explore" tabindex="0">
-          <img src="diagrams/delivery-retry-sequence.svg" alt="Sequence showing atomic processing commit, acknowledgment, outbox dispatch, a failed delivery, a delayed retry and durable success recording." width="1500" loading="eager">
+        <div class="diagram-frame sequence-frame" role="region" aria-label="Durable processing and ambiguous retry sequence; scroll to explore" tabindex="0">
+          <img src="diagrams/delivery-retry-sequence.svg" alt="Input remains replayable until the result and intent are durable and indexing succeeds. The dispatcher leases ready work, records a lost response as unknown with a retry time, retries the same key and payload, and conditionally records the recipient's prior acceptance." width="1500" loading="eager">
         </div>
-        <figcaption>Illustrates one retryable failure followed by success. <a href="diagrams/delivery-retry-sequence.svg">Open full diagram</a> · <a href="diagrams/delivery-retry-sequence.mmd">Mermaid source</a></figcaption>
+        <figcaption>Successful processing prerequisites followed by an ambiguous delivery and safe recipient replay. <a href="diagrams/delivery-retry-sequence.svg">Open full diagram</a> · <a href="diagrams/delivery-retry-sequence.mmd">Mermaid source</a></figcaption>
       </figure>
-      <p class="note"><strong>Recovery contract:</strong> processing is idempotent by tenant and event ID. Work leases expire after crashes. Rescheduling is durable before releasing the current claim; already-recorded success suppresses further attempts. Permanent failures and exhausted retries enter controlled recovery, not an endless loop. Delivery order is not guaranteed by this proposal.</p>
+      <section class="assumptions" aria-labelledby="sequence-boundaries-title">
+        <h2 id="sequence-boundaries-title">Recovery at the boundaries</h2>
+        <ol>
+          <li><h3>P1 · Before input acknowledgment</h3><p>Reuse a committed result on redelivery. If indexing fails, keep input replayable and defer with a budget. Ready or terminal intents do not repeat processing; exhausted processing is durably retained for attention before acknowledgment. Index acceptance is a readiness gate, not a transaction with the event store.</p></li>
+          <li><h3>P1 + P2 · During a delivery claim</h3><p>A crash or failed outcome write leaves a recoverable lease. Expiry does not prove the customer did nothing; reschedule with the same key, a new attempt token and the remaining retry budget. Budget exhaustion retains needs-attention work.</p></li>
+          <li><h3>P3 · After customer acceptance</h3><p>A lost response triggers an ambiguous retry. Recipient deduplication must cover the side effect and key in one transaction. Once acceptance is stored, late attempt tokens cannot regress status; already-sent requests can still arrive, so recipient deduplication remains necessary.</p></li>
+          <li><h3>P1 + P3 · Controlled recovery</h3><p>Replay saved work with the original key and payload within the agreed deduplication window. Changing the destination or payload, or replaying after key expiry, requires an explicit recovery decision because it can repeat a customer action.</p></li>
+        </ol>
+      </section>
+      <p class="related-page">Mechanisms and scope: <a href="proposed.html">02 Proposed design</a>. Production pass/stop criteria: <a href="failures.html">01.2 Failure priorities</a>. Deferred work: <a href="future.html">04 Future scope</a>.</p>
     </section>
     </main>
   </div>

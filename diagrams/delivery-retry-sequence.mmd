@@ -1,32 +1,48 @@
 sequenceDiagram
-    accTitle: Proposed durable handoff and delivery retry sequence
-    accDescr: Processing commits an enriched event and outbox intent before acknowledging the original event. A relay publishes durable delivery work. Failed delivery schedules a bounded retry without calling enrichment again. A successful endpoint response is persisted before completion. Crashes can still cause duplicates, a stable event identifier supports deduplication.
+    accTitle: Durable processing and an ambiguous delivery retry
+    accDescr: Input remains replayable while processing saves an immutable result and a waiting-index intent. The existing search write must succeed before the intent becomes ready and the input is acknowledged. Delivery claims ready work using a lease and token. A customer can apply an effect but lose its response. The dispatcher records an unknown outcome and durable retry time, then retries the same key and payload. A cooperating recipient deduplicates the effect. Conditional updates prevent stale attempts from changing accepted status, exhausted work remains visible for recovery.
     participant B as Event buffer
     participant P as Processing
-    participant S as Event state + outbox
-    participant R as Outbox relay
-    participant Q as Delivery work
-    participant D as Delivery
-    participant E as Customer endpoint
-    B->>P: Receive event
-    Note over P: Obtain enrichment result before committing
-    P->>S: Commit result + delivery intent atomically
-    S-->>P: Durable commit confirmed
-    P->>B: Acknowledge event
-    R->>S: Read pending intent
-    R->>Q: Publish delivery work
-    Q-->>R: Durable publish confirmed
-    R->>S: Mark intent dispatched
-    Note over S,Q: Relay may publish twice after a crash, use stable delivery ID
-    Q->>D: Claim due work with lease
-    D->>E: POST enriched payload + stable event ID
-    E-->>D: Retryable failure
-    D->>Q: Durably reschedule with backoff + jitter
-    Note over Q,E: Bounded attempts / age, permanent failures go to recovery
-    Q->>D: Claim retry when due
-    D->>E: POST same payload + event ID
-    E-->>D: Success response
-    D->>S: Persist successful outcome
-    S-->>D: Durable commit confirmed
-    D->>Q: Complete work
-    Note over D,E: Response loss or crash can repeat delivery, recipient deduplicates
+    participant E as Enrichment
+    participant S as Event state + intents
+    participant I as Search index
+    participant D as Delivery dispatcher
+    participant C as Customer endpoint
+    B->>P: Receive event, keep replay ownership
+    P->>S: Lookup tenant + event ID
+    S-->>P: Existing state or absent
+    alt Existing ready or terminal intent
+        P->>B: Acknowledge duplicate input without recreating work
+    else New event or waiting-index intent
+        opt No saved result
+            P->>E: Enrich within deadline and concurrency limit
+            E-->>P: Enriched payload
+            P->>S: Atomic unique result + waiting-index intent
+            S-->>P: Durable commit confirmed
+        end
+        Note over P,I: Pending input resumes here using the saved payload
+        P->>I: Idempotent event write
+        I-->>P: Write acknowledged
+        Note over B,I: Index success path shown, failures retain replay ownership and defer with a budget
+        P->>S: Conditionally mark waiting-index intent ready
+        S-->>P: Durable ready state confirmed
+        P->>B: Acknowledge input
+    end
+    Note over S,D: Only ready or due-retry intents may be claimed
+    D->>S: Claim due intent, persist lease, token and attempt
+    S-->>D: Stable delivery key + immutable payload
+    D->>C: Deliver with stable key
+    C->>C: Atomically record dedup key and apply effect
+    C--xD: Acceptance response lost
+    D->>S: Commit unknown outcome + retry time, release lease with token
+    S-->>D: Durable retry confirmed
+    Note over S,D: Failed state write leaves lease recoverable, no in-memory-only retry
+    D->>S: Claim when due, enforce limits and remaining budget
+    S-->>D: Same key and payload, new attempt token
+    D->>C: Repeat delivery with same key
+    C->>C: Recognize key, do not repeat effect
+    C-->>D: Return prior acceptance
+    D->>S: Conditionally commit endpoint-accepted, clear due work
+    S-->>D: Durable outcome confirmed
+    Note over S,C: Expired workers cannot regress status, overlapping requests still need recipient deduplication
+    Note over B,S: Permanent failures or exhausted age/attempt budgets become durable needs-attention work

@@ -19,6 +19,7 @@
         <a class="nav-child" href="failures.html" aria-current="page"><span class="nav-number" aria-hidden="true">01.2</span><span>Failure priorities</span></a>
         <a href="proposed.html"><span class="nav-number" aria-hidden="true">02</span><span>Proposed design</span></a>
         <a href="sequence.html"><span class="nav-number" aria-hidden="true">03</span><span>Delivery sequence</span></a>
+        <a href="future.html"><span class="nav-number" aria-hidden="true">04</span><span>Future scope</span></a>
       </nav>
       <a class="repository-link" href="https://github.com/danielcg-net/sre-leadership-case-study">Source repository ↗</a>
     </aside>
@@ -63,9 +64,9 @@
         <h3>Detect</h3>
         <p>Reconcile unique accepted event IDs against durable pending work, confirmed endpoint acceptance, or an explicit needs-attention state. Alert on unaccounted IDs beyond a defined processing grace period, stale handoffs, and oldest pending age. Use an independent synthetic sender's acceptance ledger so a missing internal record cannot hide loss. Queue depth alone cannot detect vanished work.</p>
         <h3>Make resilient</h3>
-        <p>Acknowledge ingestion only after durable append. Keep processing work replayable until the result and delivery intent commit atomically. Publish from that intent, tolerate duplicate publication with stable IDs, and recover abandoned claims with leases and reconciliation. This applies <a href="patterns.html">Guaranteed Delivery, Transactional Outbox and Idempotent Receiver</a>; storage transactions and recovery retention are prerequisites.</p>
+        <p>Acknowledge ingestion only after durable append. Keep processing work replayable until the result and delivery intent commit atomically and the retained indexing prerequisite is satisfied. Dispatch directly from ready intents, tolerate repeated delivery with stable IDs, and recover abandoned claims with leases and reconciliation. This applies <a href="patterns.html">Guaranteed Delivery, Transactional Outbox and Idempotent Receiver</a>; storage transactions and recovery retention are prerequisites.</p>
         <h3>Verify in production</h3>
-        <p>For dedicated synthetic events, restart isolated workers after receipt, after result/intent commit, and after publication but before marking it complete. Reconcile every accepted ID after the recovery deadline. Pass only if none is unaccounted for, each has a durable next action or terminal outcome, and the control endpoint records the expected effect. Observe through a restart, backlog drain and replay cycle. Any missing ID stops rollout; preserve pending intents and replay compatibility during rollback.</p>
+        <p>For dedicated synthetic events, restart isolated workers after receipt, after result/intent commit, and after readiness but before input acknowledgment. Reconcile every accepted ID after the recovery deadline. Pass only if none is unaccounted for, each has a durable next action or terminal outcome, and the control endpoint records the expected effect. Observe through a restart, backlog drain and replay cycle. Any missing ID stops rollout; preserve pending intents and replay compatibility during rollback.</p>
       </section>
       <section class="priority-detail" id="priority-overload" aria-labelledby="overload-title">
         <p class="eyebrow">Priority 2 · Availability and latency</p>
@@ -79,7 +80,7 @@
         <h3>Detect</h3>
         <p>Track accepted-to-endpoint-acceptance age, including pending events, by tenant cohort. Correlate oldest backlog age and drain rate with enrichment latency/timeouts, in-flight saturation, and processing attempts per unique event. Watch ingestion rejection and dashboard latency as containment guardrails. Page on sustained customer-impact/error-budget burn; successful-delivery percentiles alone omit stuck events.</p>
         <h3>Make resilient</h3>
-        <p>Separate delivery retries from enrichment and reuse the stored payload. Bound enrichment duration and concurrency; use circuit breakers, per-tenant/endpoint capacity budgets, and delayed retries with jitter, maximum attempts and age. Route permanent failures or exhausted budgets to owned recovery. Decouple search projection from delivery-critical persistence and apply explicit admission limits before buffer exhaustion. <a href="patterns.html">Retry, Circuit Breaker, Bulkhead and Dead Letter Channel</a> provide the relevant controls.</p>
+        <p>Separate delivery retries from enrichment and reuse the stored payload. Bound enrichment duration and concurrency; use circuit breakers, per-tenant/endpoint capacity budgets, and delayed retries with jitter, maximum attempts and age. Route permanent failures or exhausted budgets to owned recovery. Monitor buffer headroom and retain existing ingress limits. Asynchronous search projection and broader admission redesign are <a href="future.html">future scope</a>; index completion remains a readiness gate. <a href="patterns.html">Retry, Circuit Breaker, Bulkhead and Dead Letter Channel</a> provide the relevant controls.</p>
         <h3>Verify in production</h3>
         <p>Introduce latency and endpoint rejection only for a dedicated test tenant through a scoped fault profile. Compare canary and control cohorts at matched traffic: delivery retries must add no enrichment calls, attempt counts stay within budget, unaffected tenants remain within their delivery objective, and backlog drains within the agreed recovery window. Check peak traffic and an entire retry-budget cycle. Stop on faster error-budget burn, falling storage headroom, or regression in ingestion/dashboard availability.</p>
       </section>

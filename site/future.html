@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Deferred improvements, residual risks, and triggers for work beyond the three reliability priorities.">
+  <title>Future scope | SRE leadership case study</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="layout">
+    <aside class="sidebar" aria-label="Case study navigation">
+      <a class="brand" href="index.html">SRE leadership<span>Webhook reliability</span></a>
+      <p class="nav-heading">Architecture</p>
+      <nav aria-label="Case study pages">
+        <a href="index.html"><span class="nav-number" aria-hidden="true">01</span><span>Current flow</span></a>
+        <a class="nav-child" href="patterns.html"><span class="nav-number" aria-hidden="true">01.1</span><span>Architecture patterns</span></a>
+        <a class="nav-child" href="failures.html"><span class="nav-number" aria-hidden="true">01.2</span><span>Failure priorities</span></a>
+        <a href="proposed.html"><span class="nav-number" aria-hidden="true">02</span><span>Proposed design</span></a>
+        <a href="sequence.html"><span class="nav-number" aria-hidden="true">03</span><span>Delivery sequence</span></a>
+        <a href="future.html" aria-current="page"><span class="nav-number" aria-hidden="true">04</span><span>Future scope</span></a>
+      </nav>
+      <a class="repository-link" href="https://github.com/danielcg-net/sre-leadership-case-study">Source repository ↗</a>
+    </aside>
+    <main id="content" tabindex="-1">
+    <section id="future" aria-labelledby="future-title">
+      <p class="eyebrow">04 / Future scope</p>
+      <h1 id="future-title">Improvements beyond the three priorities</h1>
+      <p>The active proposal addresses durable work ownership, retry amplification and duplicate effects. These candidates extend availability, consistency or product guarantees beyond that scope. Their residual risks remain visible in the current analysis.</p>
+      <div class="pattern-table-frame" role="region" aria-label="Deferred improvements and reconsideration triggers; scroll horizontally on narrow screens" tabindex="0">
+        <table class="pattern-table">
+          <caption>Deferred work, remaining exposure, and when to revisit</caption>
+          <thead><tr><th scope="col">Deferred improvement</th><th scope="col">Why separate</th><th scope="col">Residual risk</th><th scope="col">Revisit when</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Asynchronous search projection / CQRS</th><td>Changes the existing indexing contract and introduces projection replay and freshness operations.</td><td>Index write outages still delay delivery readiness; durable replay prevents the handoff from disappearing.</td><td>Measured index latency or availability materially limits delivery after the priority controls land.</td></tr>
+            <tr><th scope="row">General dashboard/read-model consistency and isolation</th><td>Requires broader versioning, rebuild, cache and read-capacity decisions. Per-delivery authoritative status is already in scope for P1/P3.</td><td>Event search and aggregate views can lag or disagree, and shared read capacity can degrade.</td><td>Cross-view freshness or dashboard availability breaches an agreed customer objective.</td></tr>
+            <tr><th scope="row">Ordered delivery across events</th><td>Requires partitioning, per-entity sequencing and a policy for blocked events.</td><td>A later event can arrive before an earlier retry even when each individual delivery is idempotent.</td><td>A customer contract requires per-entity ordering and its head-of-line blocking tradeoff is accepted.</td></tr>
+            <tr><th scope="row">Platform-wide admission and capacity redesign</th><td>Changes ingress policy, scaling and storage capacity planning. P2 includes only the concurrency and retry controls needed for containment.</td><td>Prolonged outages can still consume finite buffer capacity; existing ingress limits and headroom monitoring remain necessary.</td><td>Peak-load tests or backlog growth show insufficient recovery capacity with the scoped controls.</td></tr>
+            <tr><th scope="row">Multi-region disaster recovery and archival replay</th><td>Adds failure-domain, replication, failover and long-retention contracts beyond local crash recovery.</td><td>Regional or correlated durable-store loss is not solved by leases or an atomic intent.</td><td>Agreed recovery-point/recovery-time objectives demand resilience beyond the selected storage failure domain.</td></tr>
+            <tr><th scope="row">Customer processing receipts and broader audit reporting</th><td>Requires additional recipient cooperation and product/reporting contracts. Minimum attempt identity and outcome history stay in P3.</td><td>Endpoint acceptance cannot prove downstream business completion; historical views remain limited to retained evidence.</td><td>Customers require proof of completed processing or longer-lived audit evidence.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><strong>Scope guardrail:</strong> durable retention through recovery, bounded retries, tenant-safe delivery identity and recipient deduplication requirements are part of the active proposal. Deferring broader improvements does not remove those prerequisites.</p>
+      <p class="related-page">Return to <a href="proposed.html">02 Proposed design</a> or the <a href="failures.html">failure-mode map and priority rationale</a>.</p>
+    </section>
+    </main>
+  </div>
+</body>
+</html>
