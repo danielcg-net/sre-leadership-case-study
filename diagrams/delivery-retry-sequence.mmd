@@ -1,0 +1,32 @@
+sequenceDiagram
+    accTitle: Proposed durable handoff and delivery retry sequence
+    accDescr: Processing commits an enriched event and outbox intent before acknowledging the original event. A relay publishes durable delivery work. Failed delivery schedules a bounded retry without calling enrichment again. A successful endpoint response is persisted before completion. Crashes can still cause duplicates, a stable event identifier supports deduplication.
+    participant B as Event buffer
+    participant P as Processing
+    participant S as Event state + outbox
+    participant R as Outbox relay
+    participant Q as Delivery work
+    participant D as Delivery
+    participant E as Customer endpoint
+    B->>P: Receive event
+    Note over P: Enrich once per successful processing attempt
+    P->>S: Commit result + delivery intent atomically
+    S-->>P: Durable commit confirmed
+    P->>B: Acknowledge event
+    R->>S: Read pending intent
+    R->>Q: Publish delivery work
+    Q-->>R: Durable publish confirmed
+    R->>S: Mark intent dispatched
+    Note over S,Q: Relay may publish twice after a crash, use stable delivery ID
+    Q->>D: Claim due work with lease
+    D->>E: POST enriched payload + stable event ID
+    E-->>D: Retryable failure
+    D->>Q: Durably reschedule with backoff + jitter
+    Note over Q,E: Bounded attempts / age, permanent failures go to recovery
+    Q->>D: Claim retry when due
+    D->>E: POST same payload + event ID
+    E-->>D: Success response
+    D->>S: Persist successful outcome
+    S-->>D: Durable commit confirmed
+    D->>Q: Complete work
+    Note over D,E: Response loss or crash can repeat delivery, recipient deduplicates

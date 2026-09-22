@@ -1,0 +1,15 @@
+flowchart TB
+    accTitle: Current webhook delivery architecture
+    accDescr: Ingestion buffers events on an event bus. Processing acknowledges on receipt, calls enrichment, stores results, and hands them to delivery. Failed delivery returns to the event bus and repeats processing. Dashboards read the stored results.
+    apps[Customer applications] --> gateway[API gateway: authentication and tenant rate limits]
+    gateway --> ingestion[Ingestion: validate events]
+    ingestion --> bus[(Event bus)]
+    bus --> processing[Processing: acknowledge on receipt]
+    processing <-->|Synchronous enrichment call| enrichment[Enrichment service]
+    processing --> data[(Datastore and search index)]
+    processing --> delivery[Delivery service]
+    data --> dashboard[Dashboard and API]
+    delivery --> endpoints[Customer webhook endpoints]
+    delivery -.->|Failed attempt: reprocess event| bus
+    classDef risk fill:#fff4db,stroke:#997233,color:#172c3a
+    class processing,delivery risk

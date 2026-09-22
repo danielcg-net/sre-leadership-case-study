@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Provider-neutral architecture and delivery semantics for a webhook reliability case study.">
+  <title>Webhook reliability | SRE leadership case study</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <p class="eyebrow">SRE leadership case study / Architecture</p>
+    <h1>Reliable webhook delivery</h1>
+    <p class="intro">Preserve accepted events. Contain downstream failures. Make delivery outcomes observable.</p>
+    <nav aria-label="Diagrams">
+      <a href="#current">Current flow</a><a href="#proposed">Proposed design</a><a href="#sequence">Delivery sequence</a>
+    </nav>
+  </header>
+  <main>
+    <p class="scope">Conceptual design exercise. The current flow reflects the scenario; changes below are proposals, not deployed or measured results. No infrastructure provider is assumed.</p>
+    <section id="current" aria-labelledby="current-title">
+      <p class="eyebrow">01 / Current flow</p>
+      <h2 id="current-title">Failures return to the full processing path</h2>
+      <p>Processing acknowledges on receipt. Every failed delivery returns to the event bus and repeats processing, including enrichment. Slow enrichment and delivery retries can therefore compound the backlog.</p>
+      <figure>
+        <div class="diagram-scroll" role="region" aria-label="Current architecture diagram; scroll horizontally on small screens" tabindex="0">
+        <img src="diagrams/current-architecture.svg" alt="Current flow: ingestion to event bus, processing and enrichment, then storage and delivery. Failed delivery returns to the event bus." width="1000" loading="eager">
+        </div>
+        <figcaption>Amber marks the acknowledgment and retry boundaries to examine. <a href="diagrams/current-architecture.svg">Open full diagram</a> · <a href="diagrams/current-architecture.mmd">Mermaid source</a></figcaption>
+      </figure>
+      <p class="note"><strong>Open question:</strong> does acknowledgment on receipt leave any durable owner of unfinished work? Confirm the actual recovery contract before concluding that a crash loses events.</p>
+    </section>
+    <section id="proposed" aria-labelledby="proposed-title">
+      <p class="eyebrow">02 / Proposed design</p>
+      <h2 id="proposed-title">Separate durable processing from delivery retries</h2>
+      <p>Commit the enriched result and a delivery intent together before acknowledging processing. Deliver from durable work; retry the stored payload without re-running enrichment. Keep search indexing off the delivery-critical path.</p>
+      <figure>
+        <div class="diagram-scroll" role="region" aria-label="Proposed architecture diagram; scroll horizontally on small screens" tabindex="0">
+        <img src="diagrams/proposed-architecture.svg" alt="Proposed flow separates processing, a transactional delivery outbox, durable delivery work, bounded retries, and asynchronous search indexing." width="1000" loading="lazy">
+        </div>
+        <figcaption>Green marks proposed persistence, retry, and isolation boundaries. <a href="diagrams/proposed-architecture.svg">Open full diagram</a> · <a href="diagrams/proposed-architecture.mmd">Mermaid source</a></figcaption>
+      </figure>
+      <ul class="decisions">
+        <li><strong>Durability:</strong> accept ingestion only after durable append. Atomic result/outbox persistence is a required capability to validate.</li>
+        <li><strong>Containment:</strong> bound enrichment calls, retry attempts and age, and per-tenant/endpoint concurrency. Circuit-open work remains pending with delayed retry; enrichment is not silently skipped.</li>
+        <li><strong>Capacity:</strong> buffering buys finite time. Monitor oldest-event age and storage headroom; use explicit admission control before capacity is exhausted.</li>
+        <li><strong>Tradeoff:</strong> extra queues and relay operations add complexity. Search may lag; expose freshness and pending delivery states rather than implying completion.</li>
+      </ul>
+    </section>
+    <section id="sequence" aria-labelledby="sequence-title">
+      <p class="eyebrow">03 / Proposed delivery sequence</p>
+      <h2 id="sequence-title">At-least-once delivery needs explicit duplicate handling</h2>
+      <p>The retry reuses the event ID and enriched payload. A lost response or a worker crash can repeat a delivery even when the endpoint already accepted it. Recipient deduplication is part of the integration contract.</p>
+      <figure>
+        <div class="sequence-scroll" role="region" aria-label="Delivery sequence diagram; scroll horizontally on small screens" tabindex="0">
+          <img src="diagrams/delivery-retry-sequence.svg" alt="Sequence showing atomic processing commit, acknowledgment, outbox dispatch, a failed delivery, a delayed retry and durable success recording." width="1500" loading="lazy">
+        </div>
+        <figcaption>Illustrates one retryable failure followed by success. <a href="diagrams/delivery-retry-sequence.svg">Open full diagram</a> · <a href="diagrams/delivery-retry-sequence.mmd">Mermaid source</a></figcaption>
+      </figure>
+      <p class="note"><strong>Recovery contract:</strong> processing is idempotent by tenant and event ID. Work leases expire after crashes. Rescheduling is durable before releasing the current claim; already-recorded success suppresses further attempts. Permanent failures and exhausted retries enter controlled recovery, not an endless loop. Delivery order is not guaranteed by this proposal.</p>
+    </section>
+  </main>
+  <footer><a href="https://github.com/danielcg-net/sre-leadership-case-study">Source repository</a><span>Editable Mermaid sources · Static SVG output</span></footer>
+</body>
+</html>
