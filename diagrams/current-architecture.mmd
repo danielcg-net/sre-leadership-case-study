@@ -1,15 +1,17 @@
 flowchart TB
     accTitle: Current webhook delivery architecture
-    accDescr: Ingestion buffers events on an event bus. Processing acknowledges on receipt, uses a synchronous request-response enrichment call as an assumption, stores results, and hands them to delivery. Failed delivery returns to the event bus and repeats processing. Dashboards read the stored results.
+    accDescr: Ingestion buffers events on an event bus. Processing acknowledges on receipt, uses a synchronous request-response enrichment call as an assumption, waits for both datastore and search-index write acknowledgments as an assumption, then hands results to delivery. The two writes are assumed non-atomic. Failed delivery returns to the event bus and repeats processing. Dashboard and API reads are assumed independent of delivery; a visible record does not prove successful delivery. Customer endpoints are outside platform control. A separate assumed outcome-update path feeds customer-visible status, but its durability is unspecified.
     apps[Customer applications] --> gateway[API gateway: authentication and tenant rate limits]
     gateway --> ingestion[Ingestion: validate events]
     ingestion --> bus[(Event bus)]
     bus --> processing[Processing: acknowledge on receipt]
     processing <-->|Assumption: synchronous request-response| enrichment[Enrichment service]
-    processing --> data[(Datastore and search index)]
-    processing --> delivery[Delivery service]
-    data --> dashboard[Dashboard and API]
-    delivery --> endpoints[Customer webhook endpoints]
+    processing <-->|Assumption: wait for both write acknowledgments| data[(Datastore and search index)]
+    processing -->|After enrichment and both writes| delivery[Delivery service]
+    data -->|Assumption: independent reads| dashboard[Dashboard and API]
+    delivery -->|Webhook attempt| endpoints[Customer webhook endpoints: outside platform control]
+    endpoints -.->|Response, or timeout with unknown outcome| delivery
+    delivery -.->|Assumption: separate status update, durability unspecified| data
     delivery -.->|Failed attempt: reprocess event| bus
     classDef risk fill:#fff4db,stroke:#997233,color:#172c3a
     class processing,delivery risk
