@@ -12,6 +12,6 @@
   },
   "devDependencies": {
     "@mermaid-js/mermaid-cli": "11.17.0",
-    "marked": "18.0.13"
+    "marked": "18.0.14"
   }
 }
